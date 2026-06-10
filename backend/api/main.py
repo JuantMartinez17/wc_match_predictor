@@ -12,6 +12,7 @@ Swagger UI: http://localhost:8000/docs
 from __future__ import annotations
 
 import asyncio
+import os
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 
@@ -63,12 +64,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+_raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001")
+_CORS_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001",
-    ],
+    allow_origins=_CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -1,3 +1,9 @@
-# Backend-specific dependencies (engine deps are in ../requirements.txt)
+# Dependencias del backend (engine + API).
+# No incluye Streamlit (solo para desarrollo local).
+numpy>=1.26
+pandas>=2.0
+scipy>=1.11
+statsmodels>=0.14
+scikit-learn>=1.3
 fastapi>=0.111
 uvicorn[standard]>=0.29
