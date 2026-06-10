@@ -4,17 +4,21 @@ main.py
 Demo de punta a punta del sistema de predicción.
 
 Ejecuta:
-  1. Generación de datos sintéticos (reemplazar por datos reales en producción).
+  1. Carga de datos (reales o sintéticos según USE_REAL_DATA).
   2. Predicción de un partido concreto con Dixon-Coles + Monte Carlo (100k).
   3. Comparación de los tres modelos de marcador en el mismo partido.
   4. Backtesting walk-forward + tabla comparativa de métricas.
   5. Recalibrado por temperatura y curva de calibración.
 
 Uso:
-    python main.py
+    python main.py              # datos sintéticos (no requiere red)
+    python main.py --real       # descarga/usa datos reales (requiere red 1ª vez)
+    python main.py --real --refresh   # fuerza re-descarga del dataset
 """
 
 from __future__ import annotations
+
+import sys
 
 import numpy as np
 
@@ -30,18 +34,42 @@ from validation.backtest import run_backtest, metrics_table
 from validation.calibration import TemperatureScaler, reliability_curve
 from validation.metrics import evaluate_all
 
+# ---------------------------------------------------------------------------
+# Flags de modo (se pueden pasar por argv o cambiando la constante aquí)
+# ---------------------------------------------------------------------------
+USE_REAL_DATA: bool = "--real" in sys.argv
+FORCE_REFRESH: bool = "--refresh" in sys.argv
+
+
+def _load_data() -> tuple:
+    """Carga historial de partidos y metadatos según el modo configurado."""
+    if USE_REAL_DATA:
+        from data.ingest import build_dataset
+        from data.synthetic import generate_team_metadata  # metadatos siguen siendo sintéticos
+
+        print("\n[modo: datos REALES]")
+        matches = build_dataset(since_year=2018, force_refresh=FORCE_REFRESH)
+        # Los metadatos de plantilla/entrenador son sintéticos hasta integrar
+        # Transfermarkt u otra fuente estructurada.
+        metadata = generate_team_metadata(seed=11)
+    else:
+        print("\n[modo: datos SINTÉTICOS]")
+        matches = generate_match_history(n_matches_per_team=30, seed=7)
+        metadata = generate_team_metadata(seed=11)
+
+    return matches, metadata
+
 
 def main() -> None:
     np.set_printoptions(precision=4, suppress=True)
 
     print("=" * 64)
-    print(" SISTEMA DE PREDICCIÓN — COPA DEL MUNDO (demo con datos sintéticos)")
+    print(" SISTEMA DE PREDICCIÓN — COPA DEL MUNDO 2026")
     print("=" * 64)
 
     # 1) Datos -------------------------------------------------------------
-    matches = generate_match_history(n_matches_per_team=30, seed=7)
-    metadata = generate_team_metadata(seed=11)
-    print(f"\nPartidos generados: {len(matches)}  |  Equipos: {metadata['team'].nunique()}")
+    matches, metadata = _load_data()
+    print(f"\nPartidos disponibles: {len(matches)}  |  Equipos: {metadata['team'].nunique()}")
     print(f"Rango de fechas: {matches['date'].min().date()} a {matches['date'].max().date()}")
 
     predictor = MatchPredictor(matches, metadata=metadata, config=DEFAULT_CONFIG)
