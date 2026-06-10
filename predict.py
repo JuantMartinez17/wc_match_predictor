@@ -7,7 +7,7 @@ Modos de uso:
   python predict.py                            # modo interactivo (pregunta equipos y fecha)
   python predict.py "Mexico" "Panama"          # directo, fecha = hoy
   python predict.py "Mexico" "Panama" --date 2026-06-15
-  python predict.py "Argentina" "France" --knockout
+  python predict.py "Argentina" "Francia" --knockout
   python predict.py --list                     # muestra los 48 equipos disponibles
 
 Flags opcionales:
@@ -15,6 +15,11 @@ Flags opcionales:
   --model             dixon_coles* | bivariate_poisson | poisson_simple
   --knockout          Modo eliminatoria (prórroga + penales)
   --synthetic         Usa datos sintéticos en lugar de datos reales
+
+Ventaja de local:
+  Se aplica automáticamente cuando uno de los equipos es México, Estados Unidos
+  o Canadá (sedes del Mundial 2026). En cualquier otro caso se considera cancha
+  neutral (hinchas equivalentes de ambos lados).
 """
 
 from __future__ import annotations
@@ -202,6 +207,30 @@ def parse_args() -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Detección automática de local (sedes del Mundial 2026)
+# ---------------------------------------------------------------------------
+
+_HOST_NATIONS = {"Mexico", "USA", "Canada"}  # nombres canónicos internos
+
+
+def detect_venue(team_a: str, team_b: str) -> tuple[bool, str | None]:
+    """
+    Devuelve (neutral, home_team).
+
+    - Si exactamente uno de los equipos es sede → neutral=False, home_team=ese equipo.
+    - Si ambos son sedes o ninguno lo es → neutral=True, home_team=None.
+    """
+    a_is_host = team_a in _HOST_NATIONS
+    b_is_host = team_b in _HOST_NATIONS
+
+    if a_is_host and not b_is_host:
+        return False, team_a
+    if b_is_host and not a_is_host:
+        return False, team_b
+    return True, None
+
+
+# ---------------------------------------------------------------------------
 # Modo interactivo
 # ---------------------------------------------------------------------------
 
@@ -212,7 +241,7 @@ def interactive_mode() -> dict:
     print("(Escribe 'lista' para ver los 48 equipos)\n")
 
     while True:
-        raw_a = input("Equipo local / A: ").strip()
+        raw_a = input("Primer equipo : ").strip()
         if raw_a.lower() == "lista":
             _print_teams()
             continue
@@ -220,7 +249,7 @@ def interactive_mode() -> dict:
             break
 
     while True:
-        raw_b = input("Equipo visitante / B: ").strip()
+        raw_b = input("Segundo equipo: ").strip()
         if raw_b.lower() == "lista":
             _print_teams()
             continue
@@ -259,6 +288,13 @@ def _print_teams() -> None:
 # Predicción
 # ---------------------------------------------------------------------------
 
+def _venue_label(neutral: bool, home_team: str | None, team_a: str, team_b: str) -> str:
+    if not neutral and home_team:
+        nombre_es = TEAM_EN_TO_ES.get(home_team, home_team)
+        return f"Local: {nombre_es} (sede del Mundial)"
+    return "Cancha neutral"
+
+
 def run_prediction(cfg: dict) -> None:
     if cfg.get("synthetic"):
         from data.synthetic import generate_match_history, generate_team_metadata
@@ -281,17 +317,28 @@ def run_prediction(cfg: dict) -> None:
     ref_date = resolve_date(cfg["date"])
     model = cfg.get("model", "dixon_coles")
 
+    neutral, home_team = detect_venue(team_a, team_b)
+    venue_label = _venue_label(neutral, home_team, team_a, team_b)
+
+    nombre_a = TEAM_EN_TO_ES.get(team_a, team_a)
+    nombre_b = TEAM_EN_TO_ES.get(team_b, team_b)
+
     print()
     if cfg.get("knockout"):
-        ko = predictor.predict_knockout(team_a, team_b, ref_date, neutral=True, model=model)
+        ko = predictor.predict_knockout(
+            team_a, team_b, ref_date, neutral=neutral, home_team=home_team, model=model
+        )
         r = ko["regulation"]
-        print(f"ELIMINATORIA — {team_a} vs {team_b}  [{ref_date}]")
-        print(f"  90 min:  {team_a} {r['p_a']*100:.1f}%  |  Empate {r['p_draw']*100:.1f}%  |  {team_b} {r['p_b']*100:.1f}%")
+        print(f"ELIMINATORIA — {nombre_a} vs {nombre_b}  [{ref_date}]  |  {venue_label}")
+        print(f"  90 min:  {nombre_a} {r['p_a']*100:.1f}%  |  Empate {r['p_draw']*100:.1f}%  |  {nombre_b} {r['p_b']*100:.1f}%")
         print(f"  Prob. llegar a penales: {ko['p_penalties']*100:.1f}%")
-        print(f"  AVANZA {team_a}: {ko['p_advance_a']*100:.1f}%")
-        print(f"  AVANZA {team_b}: {ko['p_advance_b']*100:.1f}%")
+        print(f"  AVANZA {nombre_a}: {ko['p_advance_a']*100:.1f}%")
+        print(f"  AVANZA {nombre_b}: {ko['p_advance_b']*100:.1f}%")
     else:
-        pred = predictor.predict(team_a, team_b, ref_date, neutral=True, model=model)
+        pred = predictor.predict(
+            team_a, team_b, ref_date, neutral=neutral, home_team=home_team, model=model
+        )
+        print(f"[{venue_label}]")
         print(pred.format_report())
 
 
