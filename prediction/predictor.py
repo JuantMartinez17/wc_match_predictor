@@ -144,6 +144,8 @@ class MatchPredictor:
         absences_a: pd.DataFrame | None,
         absences_b: pd.DataFrame | None,
         model: str,
+        squad_value_a: float | None = None,
+        squad_value_b: float | None = None,
     ) -> dict:
         """
         Calcula lambdas finales, modelo de marcador y matriz conjunta para un
@@ -164,10 +166,16 @@ class MatchPredictor:
 
         m_val_a = m_val_b = 1.0
         m_coach_a = m_coach_b = 1.0
-        if self.metadata is not None and team_a in self.metadata.index and team_b in self.metadata.index:
-            va = float(self.metadata.loc[team_a, "squad_value_m"])
-            vb = float(self.metadata.loc[team_b, "squad_value_m"])
-            m_val_a, m_val_b = squad_value_multiplier(va, vb, sec)
+        # squad_value_a/b override: valor real del 11 inicial (o plantilla real).
+        # Si no se provee, se usa el valor de metadata (sintético por defecto).
+        _va = squad_value_a
+        _vb = squad_value_b
+        if _va is None and self.metadata is not None and team_a in self.metadata.index:
+            _va = float(self.metadata.loc[team_a, "squad_value_m"])
+        if _vb is None and self.metadata is not None and team_b in self.metadata.index:
+            _vb = float(self.metadata.loc[team_b, "squad_value_m"])
+        if _va is not None and _vb is not None:
+            m_val_a, m_val_b = squad_value_multiplier(_va, _vb, sec)
             m_coach_a, m_coach_b = coach_multiplier(
                 self.metadata.loc[team_a].to_dict(), self.metadata.loc[team_b].to_dict(), sec
             )
@@ -204,15 +212,22 @@ class MatchPredictor:
         absences_b: pd.DataFrame | None = None,
         model: str = "dixon_coles",
         use_simulation: bool = True,
+        squad_value_a: float | None = None,
+        squad_value_b: float | None = None,
     ) -> Prediction:
         """
         Predice un partido. `reference_date` es la fecha del encuentro (sólo se
         usan datos anteriores). En Mundial usar neutral=True salvo para el/los
         anfitrión(es), donde neutral=False y home_team = anfitrión.
+
+        squad_value_a/b: valor del 11 inicial en M EUR (override del metadata).
+            Si se provee, reemplaza el squad_value_m sintético. Usar cuando el
+            lineup está confirmado (sum de valores Transfermarkt de los titulares).
         """
         ref = pd.Timestamp(reference_date)
         core = self._match_core(
-            team_a, team_b, ref, neutral, home_team, absences_a, absences_b, model
+            team_a, team_b, ref, neutral, home_team, absences_a, absences_b, model,
+            squad_value_a=squad_value_a, squad_value_b=squad_value_b,
         )
         lam_a, lam_b, matrix = core["lam_a"], core["lam_b"], core["matrix"]
         score_model = core["score_model"]
@@ -260,6 +275,8 @@ class MatchPredictor:
         absences_a: pd.DataFrame | None = None,
         absences_b: pd.DataFrame | None = None,
         model: str = "dixon_coles",
+        squad_value_a: float | None = None,
+        squad_value_b: float | None = None,
     ) -> dict:
         """
         Predicción para partido de ELIMINATORIA: probabilidad de que cada equipo
@@ -277,7 +294,8 @@ class MatchPredictor:
         """
         ref = pd.Timestamp(reference_date)
         core = self._match_core(
-            team_a, team_b, ref, neutral, home_team, absences_a, absences_b, model
+            team_a, team_b, ref, neutral, home_team, absences_a, absences_b, model,
+            squad_value_a=squad_value_a, squad_value_b=squad_value_b,
         )
         matrix = core["matrix"]
         p_a_reg, p_draw_reg, p_b_reg = outcome_probabilities(matrix)

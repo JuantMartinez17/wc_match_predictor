@@ -295,17 +295,78 @@ def _venue_label(neutral: bool, home_team: str | None, team_a: str, team_b: str)
     return "Cancha neutral"
 
 
+def _fetch_squad_values(team: str) -> dict[str, float]:
+    """Intenta obtener valores reales de plantilla desde SofaScore. Silencia errores."""
+    try:
+        from data.players import get_squad_values
+        return get_squad_values(team)
+    except Exception:
+        return {}
+
+
+def _fetch_lineup(team_a: str, team_b: str, ref_date: str) -> dict | None:
+    """Intenta obtener el 11 inicial confirmado desde SofaScore. Silencia errores."""
+    try:
+        from data.lineups import get_lineup
+        return get_lineup(team_a, team_b, ref_date)
+    except Exception:
+        return None
+
+
+def _resolve_xi_value(
+    team: str,
+    lineup_names: list[str] | None,
+    squad_values: dict[str, float],
+) -> tuple[float | None, str]:
+    """
+    Calcula el valor del 11 inicial en M EUR.
+
+    Returns (valor_M_eur | None, descripcion_para_display).
+    """
+    if not squad_values:
+        return None, "sin datos de plantilla"
+
+    total_squad = sum(squad_values.values())
+
+    if lineup_names:
+        from data.players import compute_xi_value
+        xi = compute_xi_value(lineup_names, squad_values)
+        if xi is not None:
+            return xi, f"XI confirmado ({len(lineup_names)} jugadores, {xi:.0f}M EUR)"
+        # Lineup disponible pero no se pudo cruzar con valores → estimar
+
+    # Fallback: estimar XI como ~55% del valor total del plantel
+    xi_est = round(total_squad * 0.55, 1)
+    return xi_est, f"plantel completo ({total_squad:.0f}M EUR, XI estimado)"
+
+
 def run_prediction(cfg: dict) -> None:
     if cfg.get("synthetic"):
         from data.synthetic import generate_match_history, generate_team_metadata
         print("[modo: datos SINTETICOS]\n")
         matches = generate_match_history(n_matches_per_team=30, seed=7)
         metadata = generate_team_metadata(seed=11)
+        squad_a_vals: dict = {}
+        squad_b_vals: dict = {}
     else:
         from data.ingest import build_dataset
         from data.synthetic import generate_team_metadata
         matches = build_dataset(since_year=2018)
         metadata = generate_team_metadata(seed=11)
+
+        # Valores reales de plantilla (SofaScore/Transfermarkt)
+        team_a_raw = cfg["team_a"]
+        team_b_raw = cfg["team_b"]
+        # Resolver nombres antes de los fetches para poder buscar correctamente
+        team_a_tmp = resolve_team(team_a_raw)
+        team_b_tmp = resolve_team(team_b_raw)
+        print("  [plantillas] Obteniendo valores de mercado... ", end="", flush=True)
+        squad_a_vals = _fetch_squad_values(team_a_tmp)
+        squad_b_vals = _fetch_squad_values(team_b_tmp)
+        if squad_a_vals or squad_b_vals:
+            print("OK")
+        else:
+            print("sin conexion, usando valores sinteticos")
 
     from config import DEFAULT_CONFIG
     from prediction.predictor import MatchPredictor
@@ -319,26 +380,49 @@ def run_prediction(cfg: dict) -> None:
 
     neutral, home_team = detect_venue(team_a, team_b)
     venue_label = _venue_label(neutral, home_team, team_a, team_b)
-
     nombre_a = TEAM_EN_TO_ES.get(team_a, team_a)
     nombre_b = TEAM_EN_TO_ES.get(team_b, team_b)
+
+    # Lineup confirmado (si está disponible)
+    lineup = None
+    if not cfg.get("synthetic"):
+        print("  [lineup] Consultando 11 inicial... ", end="", flush=True)
+        lineup = _fetch_lineup(team_a, team_b, ref_date)
+        if lineup:
+            print(f"CONFIRMADO  ({len(lineup['team_a'])} + {len(lineup['team_b'])} jugadores)")
+        else:
+            print("no disponible aun")
+
+    lineup_a = lineup["team_a"] if lineup else None
+    lineup_b = lineup["team_b"] if lineup else None
+
+    xi_val_a, xi_desc_a = _resolve_xi_value(team_a, lineup_a, squad_a_vals)
+    xi_val_b, xi_desc_b = _resolve_xi_value(team_b, lineup_b, squad_b_vals)
 
     print()
     if cfg.get("knockout"):
         ko = predictor.predict_knockout(
-            team_a, team_b, ref_date, neutral=neutral, home_team=home_team, model=model
+            team_a, team_b, ref_date,
+            neutral=neutral, home_team=home_team, model=model,
+            squad_value_a=xi_val_a, squad_value_b=xi_val_b,
         )
         r = ko["regulation"]
         print(f"ELIMINATORIA — {nombre_a} vs {nombre_b}  [{ref_date}]  |  {venue_label}")
+        print(f"  {nombre_a}: {xi_desc_a}")
+        print(f"  {nombre_b}: {xi_desc_b}")
         print(f"  90 min:  {nombre_a} {r['p_a']*100:.1f}%  |  Empate {r['p_draw']*100:.1f}%  |  {nombre_b} {r['p_b']*100:.1f}%")
         print(f"  Prob. llegar a penales: {ko['p_penalties']*100:.1f}%")
         print(f"  AVANZA {nombre_a}: {ko['p_advance_a']*100:.1f}%")
         print(f"  AVANZA {nombre_b}: {ko['p_advance_b']*100:.1f}%")
     else:
         pred = predictor.predict(
-            team_a, team_b, ref_date, neutral=neutral, home_team=home_team, model=model
+            team_a, team_b, ref_date,
+            neutral=neutral, home_team=home_team, model=model,
+            squad_value_a=xi_val_a, squad_value_b=xi_val_b,
         )
         print(f"[{venue_label}]")
+        print(f"[Plantilla {nombre_a}: {xi_desc_a}]")
+        print(f"[Plantilla {nombre_b}: {xi_desc_b}]")
         print(pred.format_report())
 
 
