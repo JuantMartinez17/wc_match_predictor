@@ -25,8 +25,67 @@ from datetime import date, timedelta
 
 from data.ingest import WC2026_TEAMS
 
-# Lista ordenada para mostrar y buscar
-_TEAMS_SORTED = sorted(WC2026_TEAMS)
+# ---------------------------------------------------------------------------
+# Nombres en español — display e input
+# ---------------------------------------------------------------------------
+
+# Canónico (inglés) → español para mostrar en pantalla
+TEAM_EN_TO_ES: dict[str, str] = {
+    "Algeria": "Argelia",
+    "Argentina": "Argentina",
+    "Australia": "Australia",
+    "Austria": "Austria",
+    "Belgium": "Bélgica",
+    "Bosnia and Herzegovina": "Bosnia y Herzegovina",
+    "Brazil": "Brasil",
+    "Cabo Verde": "Cabo Verde",
+    "Canada": "Canadá",
+    "Colombia": "Colombia",
+    "Congo DR": "Congo RD",
+    "Croatia": "Croacia",
+    "Curaçao": "Curazao",
+    "Czechia": "Chequia",
+    "Côte d'Ivoire": "Costa de Marfil",
+    "Ecuador": "Ecuador",
+    "Egypt": "Egipto",
+    "England": "Inglaterra",
+    "France": "Francia",
+    "Germany": "Alemania",
+    "Ghana": "Ghana",
+    "Haiti": "Haití",
+    "Iran": "Irán",
+    "Iraq": "Irak",
+    "Japan": "Japón",
+    "Jordan": "Jordania",
+    "Korea Republic": "Corea del Sur",
+    "Mexico": "México",
+    "Morocco": "Marruecos",
+    "Netherlands": "Países Bajos",
+    "New Zealand": "Nueva Zelanda",
+    "Norway": "Noruega",
+    "Panama": "Panamá",
+    "Paraguay": "Paraguay",
+    "Portugal": "Portugal",
+    "Qatar": "Catar",
+    "Saudi Arabia": "Arabia Saudita",
+    "Scotland": "Escocia",
+    "Senegal": "Senegal",
+    "South Africa": "Sudáfrica",
+    "Spain": "España",
+    "Sweden": "Suecia",
+    "Switzerland": "Suiza",
+    "Tunisia": "Túnez",
+    "Turkey": "Turquía",
+    "USA": "Estados Unidos",
+    "Uruguay": "Uruguay",
+    "Uzbekistan": "Uzbekistán",
+}
+
+# Español → canónico (inglés) para resolver input del usuario
+TEAM_ES_TO_EN: dict[str, str] = {v.lower(): k for k, v in TEAM_EN_TO_ES.items()}
+
+# Lista ordenada por nombre en español para el display
+_TEAMS_SORTED = sorted(WC2026_TEAMS, key=lambda t: TEAM_EN_TO_ES.get(t, t))
 
 
 # ---------------------------------------------------------------------------
@@ -35,35 +94,46 @@ _TEAMS_SORTED = sorted(WC2026_TEAMS)
 
 def resolve_team(name: str) -> str:
     """
-    Devuelve el nombre canónico del equipo.
-    Acepta coincidencias exactas (case-insensitive) o aproximadas.
-    Aborta con mensaje claro si no hay match razonable.
+    Devuelve el nombre canónico (inglés interno) del equipo.
+    Acepta input en español o inglés, con coincidencias exactas o aproximadas.
     """
     name_stripped = name.strip()
     lower_input = name_stripped.lower()
 
-    # 1. Coincidencia exacta (case-insensitive)
-    for team in _TEAMS_SORTED:
+    # 1. Coincidencia exacta en español
+    if lower_input in TEAM_ES_TO_EN:
+        return TEAM_ES_TO_EN[lower_input]
+
+    # 2. Coincidencia exacta en inglés (case-insensitive)
+    for team in WC2026_TEAMS:
         if team.lower() == lower_input:
             return team
 
-    # 2. Coincidencia parcial (el input está contenido en el nombre)
-    partial = [t for t in _TEAMS_SORTED if lower_input in t.lower()]
-    if len(partial) == 1:
-        return partial[0]
-    if len(partial) > 1:
-        opts = ", ".join(partial)
-        print(f"  '{name_stripped}' es ambiguo. Opciones: {opts}")
+    # 3. Coincidencia parcial — busca en nombres en español e inglés
+    all_names_es = list(TEAM_EN_TO_ES.values())
+    partial_es = [n for n in all_names_es if lower_input in n.lower()]
+    if len(partial_es) == 1:
+        return TEAM_ES_TO_EN[partial_es[0].lower()]
+    partial_en = [t for t in WC2026_TEAMS if lower_input in t.lower()]
+    if len(partial_en) == 1:
+        return partial_en[0]
+
+    # 4. Fuzzy matching sobre nombres en español
+    close_es = difflib.get_close_matches(name_stripped, all_names_es, n=3, cutoff=0.4)
+    if close_es:
+        suggestions = ", ".join(close_es)
+        print(f"  '{name_stripped}' no encontrado. Quisiste decir: {suggestions}?")
         sys.exit(1)
 
-    # 3. Fuzzy matching
-    close = difflib.get_close_matches(name_stripped, _TEAMS_SORTED, n=3, cutoff=0.4)
-    if close:
-        suggestions = ", ".join(close)
-        print(f"  '{name_stripped}' no encontrado. Quizas quisiste: {suggestions}")
-    else:
-        print(f"  '{name_stripped}' no es un equipo del Mundial 2026.")
-        print(f"  Usa  python predict.py --list  para ver los 48 equipos.")
+    # 5. Fuzzy matching sobre nombres en inglés
+    close_en = difflib.get_close_matches(name_stripped, list(WC2026_TEAMS), n=3, cutoff=0.4)
+    if close_en:
+        suggestions = ", ".join(TEAM_EN_TO_ES.get(t, t) for t in close_en)
+        print(f"  '{name_stripped}' no encontrado. Quisiste decir: {suggestions}?")
+        sys.exit(1)
+
+    print(f"  '{name_stripped}' no es un equipo del Mundial 2026.")
+    print(f"  Usa  python predict.py --list  para ver los 48 equipos.")
     sys.exit(1)
 
 
@@ -180,7 +250,8 @@ def interactive_mode() -> dict:
 def _print_teams() -> None:
     print("\nEquipos clasificados al Mundial 2026 (48):")
     for i, t in enumerate(_TEAMS_SORTED, 1):
-        print(f"  {i:2}. {t}")
+        nombre_es = TEAM_EN_TO_ES.get(t, t)
+        print(f"  {i:2}. {nombre_es}")
     print()
 
 
