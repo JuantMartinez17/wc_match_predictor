@@ -68,7 +68,7 @@ python -m streamlit run app.py
 
 ---
 
-## API REST — Documentación para el frontend
+## API REST — Documentación
 
 > **Base URL local:** `http://localhost:8000`
 > **Swagger UI:** `http://localhost:8000/docs`
