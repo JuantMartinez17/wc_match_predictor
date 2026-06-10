@@ -9,7 +9,13 @@
       "PowerShell(python -m pip install rich --quiet 2>&1)",
       "PowerShell(python -c \"import streamlit; print\\('streamlit OK:', streamlit.__version__\\)\" 2>&1)",
       "Bash(streamlit run *)",
-      "PowerShell(cd \"c:\\\\Users\\\\juant\\\\Documents\\\\wc_match_predictor\"; $proc = Start-Process -FilePath \"python\" -ArgumentList \"-m streamlit run app.py --server.headless true --server.port 8501\" -PassThru -WindowStyle Hidden; Start-Sleep 8; $proc.Id)"
+      "PowerShell(cd \"c:\\\\Users\\\\juant\\\\Documents\\\\wc_match_predictor\"; $proc = Start-Process -FilePath \"python\" -ArgumentList \"-m streamlit run app.py --server.headless true --server.port 8501\" -PassThru -WindowStyle Hidden; Start-Sleep 8; $proc.Id)",
+      "PowerShell(node --version)",
+      "PowerShell(npm --version)",
+      "PowerShell(npx --version)",
+      "PowerShell(python -c \"import fastapi; import uvicorn; print\\('fastapi:', fastapi.__version__, '| uvicorn:', uvicorn.__version__\\)\")",
+      "PowerShell(New-Item -ItemType Directory -Force -Path \"c:\\\\Users\\\\juant\\\\Documents\\\\wc_match_predictor\\\\frontend\\\\types\")",
+      "PowerShell(New-Item -ItemType Directory -Force -Path \"c:\\\\Users\\\\juant\\\\Documents\\\\wc_match_predictor\\\\frontend\\\\hooks\")"
     ]
   }
 }

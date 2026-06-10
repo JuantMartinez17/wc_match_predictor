@@ -1,0 +1,29 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+
+# Datos cacheados
+/data/cache/
+
+# Next.js
+frontend/.next/
+frontend/node_modules/
+frontend/.env.local
+
+# Entorno
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
