@@ -93,18 +93,27 @@ _TOURNAMENT_MAP: dict[str, str] = {
 # ---------------------------------------------------------------------------
 
 _TEAM_NAME_MAP: dict[str, str] = {
+    # Asia
     "South Korea": "Korea Republic",
     "Republic of Korea": "Korea Republic",
+    "IR Iran": "Iran",
+    # Europa
     "United States": "USA",
     "Czech Republic": "Czechia",
+    "Turkey": "Turkey",        # ya existe, solo por claridad
+    "Türkiye": "Turkey",       # nombre oficial FIFA desde 2022
+    "Bosnia-Herzegovina": "Bosnia and Herzegovina",
+    "Bosnia & Herzegovina": "Bosnia and Herzegovina",
+    # Africa
     "Ivory Coast": "Côte d'Ivoire",
     "Cote d'Ivoire": "Côte d'Ivoire",
     "DR Congo": "Congo DR",
+    "Democratic Republic of the Congo": "Congo DR",
     "Cape Verde": "Cabo Verde",
-    "North Macedonia": "North Macedonia",
-    "Chinese Taipei": "Chinese Taipei",
-    "Palestine": "Palestine",
-    "Kosovo": "Kosovo",
+    "Cape Verde Islands": "Cabo Verde",
+    # Oceanía
+    # Otros
+    "Curacao": "Curaçao",
 }
 
 
@@ -113,14 +122,22 @@ _TEAM_NAME_MAP: dict[str, str] = {
 # ---------------------------------------------------------------------------
 
 WC2026_TEAMS: frozenset[str] = frozenset({
-    "Argentina", "France", "Brazil", "England",
-    "Spain", "Portugal", "Netherlands", "Germany",
-    "Belgium", "Italy", "Croatia", "Uruguay",
-    "Morocco", "Colombia", "Mexico", "USA",
-    "Senegal", "Switzerland", "Denmark", "Japan",
-    "Korea Republic", "Ecuador", "Poland", "Australia",
-    "Serbia", "Nigeria", "Canada", "Ghana",
-    "Tunisia", "Iran", "Saudi Arabia", "Qatar",
+    # CONMEBOL (6)
+    "Argentina", "Brazil", "Colombia", "Ecuador", "Paraguay", "Uruguay",
+    # UEFA (16)
+    "Austria", "Belgium", "Bosnia and Herzegovina", "Croatia", "Czechia",
+    "England", "France", "Germany", "Netherlands", "Norway",
+    "Portugal", "Scotland", "Spain", "Sweden", "Switzerland", "Turkey",
+    # CAF (10)
+    "Algeria", "Cabo Verde", "Congo DR", "Côte d'Ivoire", "Egypt",
+    "Ghana", "Morocco", "Senegal", "South Africa", "Tunisia",
+    # AFC (9)
+    "Australia", "Iran", "Iraq", "Japan", "Jordan",
+    "Korea Republic", "Qatar", "Saudi Arabia", "Uzbekistan",
+    # CONCACAF (6, incluye sedes)
+    "Canada", "Curaçao", "Haiti", "Mexico", "Panama", "USA",
+    # OFC (1)
+    "New Zealand",
 })
 
 

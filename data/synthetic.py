@@ -21,14 +21,28 @@ import pandas as pd
 # 32 selecciones con una "fuerza latente" subyacente (sólo para simular; el
 # modelo NO la conoce y debe estimarla a partir de resultados).
 _TEAMS_LATENT = {
-    "Argentina": 2.05, "France": 2.00, "Brazil": 1.95, "England": 1.85,
-    "Spain": 1.85, "Portugal": 1.80, "Netherlands": 1.75, "Germany": 1.75,
-    "Belgium": 1.70, "Italy": 1.68, "Croatia": 1.62, "Uruguay": 1.60,
-    "Morocco": 1.58, "Colombia": 1.55, "Mexico": 1.50, "USA": 1.48,
-    "Senegal": 1.46, "Switzerland": 1.45, "Denmark": 1.44, "Japan": 1.42,
-    "Korea Republic": 1.38, "Ecuador": 1.36, "Poland": 1.35, "Australia": 1.30,
-    "Serbia": 1.30, "Nigeria": 1.32, "Canada": 1.28, "Ghana": 1.26,
-    "Tunisia": 1.22, "Iran": 1.24, "Saudi Arabia": 1.18, "Qatar": 1.10,
+    # CONMEBOL
+    "Argentina": 2.05, "Brazil": 1.95, "Colombia": 1.58,
+    "Uruguay": 1.60, "Ecuador": 1.36, "Paraguay": 1.42,
+    # UEFA
+    "France": 2.00, "England": 1.85, "Spain": 1.85, "Portugal": 1.80,
+    "Netherlands": 1.75, "Germany": 1.75, "Belgium": 1.70, "Croatia": 1.62,
+    "Switzerland": 1.45, "Denmark": 1.44, "Austria": 1.60, "Norway": 1.55,
+    "Scotland": 1.50, "Sweden": 1.52, "Czechia": 1.48,
+    "Bosnia and Herzegovina": 1.38, "Turkey": 1.48,
+    # CAF
+    "Morocco": 1.58, "Senegal": 1.46, "Egypt": 1.40, "Algeria": 1.45,
+    "Ghana": 1.26, "Tunisia": 1.22, "Côte d'Ivoire": 1.42,
+    "South Africa": 1.28, "Congo DR": 1.30, "Cabo Verde": 1.22,
+    # AFC
+    "Japan": 1.42, "Korea Republic": 1.38, "Iran": 1.24,
+    "Australia": 1.30, "Saudi Arabia": 1.18, "Qatar": 1.10,
+    "Iraq": 1.32, "Jordan": 1.28, "Uzbekistan": 1.30,
+    # CONCACAF
+    "Mexico": 1.50, "USA": 1.48, "Canada": 1.28,
+    "Panama": 1.30, "Haiti": 1.18, "Curaçao": 1.12,
+    # OFC
+    "New Zealand": 1.20,
 }
 
 _COMPETITIONS = ["world_cup", "continental_cup", "qualifier", "nations_league", "friendly"]
