@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(python -m pip install streamlit --no-deps 2>&1)",
+      "PowerShell(python -c \"import streamlit\" 2>&1)",
+      "Read(//c/Python312/Scripts/**)",
+      "PowerShell(python -c \"import streamlit; import altair; import pyarrow; import pydeck; import gitpython; print\\('OK'\\)\" 2>&1)",
+      "PowerShell(python -c \"import streamlit; print\\('streamlit', streamlit.__version__\\)\" 2>&1)",
+      "PowerShell(python -m pip install rich --quiet 2>&1)",
+      "PowerShell(python -c \"import streamlit; print\\('streamlit OK:', streamlit.__version__\\)\" 2>&1)",
+      "Bash(streamlit run *)",
+      "PowerShell(cd \"c:\\\\Users\\\\juant\\\\Documents\\\\wc_match_predictor\"; $proc = Start-Process -FilePath \"python\" -ArgumentList \"-m streamlit run app.py --server.headless true --server.port 8501\" -PassThru -WindowStyle Hidden; Start-Sleep 8; $proc.Id)"
+    ]
+  }
+}
