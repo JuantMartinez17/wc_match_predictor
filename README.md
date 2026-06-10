@@ -103,23 +103,28 @@ Lista los 48 equipos clasificados al Mundial 2026, ordenados alfabéticamente po
 ```json
 [
   {
+    "id": "alemania",
     "canonical": "Germany",
     "name_es": "Alemania",
     "flag": "🇩🇪"
   },
   {
-    "canonical": "Saudi Arabia",
-    "name_es": "Arabia Saudita",
-    "flag": "🇸🇦"
+    "id": "korea-republic",
+    "canonical": "Korea Republic",
+    "name_es": "Corea del Sur",
+    "flag": "🇰🇷"
   }
 ]
 ```
 
 | Campo | Tipo | Descripción |
 |---|---|---|
-| `canonical` | `string` | Nombre interno en inglés — usar para llamar a `/api/predict` |
+| `id` | `string` | Slug estable único — **usar este campo para llamar a `/api/predict`** |
+| `canonical` | `string` | Nombre interno en inglés (para debugging) |
 | `name_es` | `string` | Nombre en español para mostrar al usuario |
 | `flag` | `string` | Emoji de la bandera del país |
+
+**Ejemplos de IDs:** `argentina`, `brazil`, `usa`, `korea-republic`, `cote-divoire`, `bosnia-and-herzegovina`
 
 ---
 
@@ -144,6 +149,8 @@ Fixture oficial del Mundial 2026 desde ESPN API pública. Devuelve los partidos 
     "id": "726321",
     "date": "2026-06-15",
     "time_utc": "20:00",
+    "team_a_id": "mexico",
+    "team_b_id": "usa",
     "team_a": "Mexico",
     "team_b": "USA",
     "team_a_es": "México",
@@ -162,10 +169,11 @@ Fixture oficial del Mundial 2026 desde ESPN API pública. Devuelve los partidos 
 
 | Campo | Tipo | Descripción |
 |---|---|---|
-| `id` | `string` | ID del evento en ESPN — puede usarse como key de React |
+| `id` | `string` | ID del evento ESPN — usar como `key` en React |
+| `team_a_id` / `team_b_id` | `string` | **IDs de los equipos — pasar directamente a `/api/predict`** |
 | `date` | `string` | Fecha en formato `YYYY-MM-DD` |
 | `time_utc` | `string` | Hora en UTC, formato `HH:MM` |
-| `team_a` / `team_b` | `string` | Nombre canónico en inglés |
+| `team_a` / `team_b` | `string` | Nombre canónico en inglés (para debugging) |
 | `team_a_es` / `team_b_es` | `string` | Nombre en español para mostrar |
 | `flag_a` / `flag_b` | `string` | Emoji bandera |
 | `status` | `string` | Ver valores posibles abajo |
@@ -197,8 +205,8 @@ Corre el modelo y devuelve la predicción completa para un partido. Es el endpoi
 
 ```json
 {
-  "team_a": "Argentina",
-  "team_b": "France",
+  "team_a_id": "argentina",
+  "team_b_id": "france",
   "date": "2026-06-28",
   "knockout": false,
   "model": "dixon_coles"
@@ -207,18 +215,20 @@ Corre el modelo y devuelve la predicción completa para un partido. Es el endpoi
 
 | Campo | Tipo | Requerido | Descripción |
 |---|---|---|---|
-| `team_a` | `string` | Sí | Nombre del equipo A (inglés o español, acepta fuzzy matching) |
-| `team_b` | `string` | Sí | Nombre del equipo B (inglés o español, acepta fuzzy matching) |
+| `team_a_id` | `string` | Sí | ID del equipo A (campo `id` de `/api/teams`) |
+| `team_b_id` | `string` | Sí | ID del equipo B (campo `id` de `/api/teams`) |
 | `date` | `string` | No | Fecha `YYYY-MM-DD`. Default: hoy |
 | `knockout` | `boolean` | No | `true` = modo eliminatoria con prórroga y penales. Default: `false` |
 | `model` | `string` | No | `"dixon_coles"` (default) \| `"bivariate_poisson"` \| `"poisson_simple"` |
 
-> `team_a` y `team_b` aceptan el nombre canónico en inglés (campo `canonical` de `/api/teams`) o el nombre en español. El backend hace fuzzy matching: `"brasil"`, `"Brazil"`, `"BRASIL"` son equivalentes. **Para el fixture, lo más seguro es pasar directamente `team_a` y `team_b` tal como vienen en la respuesta de `/api/fixture`.**
+> El backend resuelve el ID a nombre canónico con un lookup O(1). Si el ID no existe devuelve `422` con un mensaje que indica que hay que consultar `/api/teams`. No hay fuzzy matching en la API — el texto libre es exclusivo de la CLI.
 
 **Response:**
 
 ```json
 {
+  "team_a_id": "argentina",
+  "team_b_id": "france",
   "team_a": "Argentina",
   "team_b": "France",
   "team_a_es": "Argentina",
@@ -245,7 +255,7 @@ Corre el modelo y devuelve la predicción completa para un partido. Es el endpoi
   ],
 
   "neutral": true,
-  "home_team": null,
+  "home_team_id": null,
   "venue_label": "Cancha neutral",
 
   "squad_desc_a": "XI confirmado (11 jugadores, 742M EUR)",
@@ -264,7 +274,8 @@ Corre el modelo y devuelve la predicción completa para un partido. Es el endpoi
 
 | Campo | Tipo | Descripción |
 |---|---|---|
-| `team_a` / `team_b` | `string` | Nombre canónico resuelto (puede diferir del input si hubo fuzzy match) |
+| `team_a_id` / `team_b_id` | `string` | IDs devueltos — mismos que en el request |
+| `team_a` / `team_b` | `string` | Nombre canónico en inglés (para debugging) |
 | `team_a_es` / `team_b_es` | `string` | Nombre en español para mostrar |
 | `flag_a` / `flag_b` | `string` | Emoji bandera |
 | `p_a` | `float` | Probabilidad de que gane el equipo A a 90 min (0–1) |
@@ -273,7 +284,7 @@ Corre el modelo y devuelve la predicción completa para un partido. Es el endpoi
 | `xg_a` / `xg_b` | `float` | Goles esperados para cada equipo |
 | `top_scorelines` | `ScoreProbability[]` | 8 marcadores más probables, ordenados por probabilidad desc |
 | `neutral` | `boolean` | `false` si uno de los equipos juega como local (sedes del Mundial) |
-| `home_team` | `string \| null` | Nombre canónico del equipo local si `neutral=false` |
+| `home_team_id` | `string \| null` | ID (slug) del equipo local si `neutral=false`; `null` si es cancha neutral |
 | `venue_label` | `string` | Texto listo para mostrar: `"Cancha neutral"` o `"Local: México (sede del Mundial)"` |
 | `squad_desc_a` / `squad_desc_b` | `string` | Fuente de datos de plantilla usada (para mostrar en UI si se quiere) |
 | `narrative` | `string` | Resumen en español sin jerga estadística, listo para mostrar al usuario |
@@ -336,17 +347,17 @@ import { fetchTeams, fetchFixture, predictMatch } from "@/lib/api";
 // Fixture
 const matches = await fetchFixture(10);
 
-// Predicción desde un partido del fixture
+// Predicción desde un partido del fixture (los IDs vienen directo)
 const result = await predictMatch({
-  team_a: match.team_a,   // canónico, viene directo del fixture
-  team_b: match.team_b,
+  team_a_id: match.team_a_id,
+  team_b_id: match.team_b_id,
   date: match.date,
   knockout: false,
 });
 
-// Selector manual
+// Selector manual (usar el id del equipo de /api/teams)
 const teams = await fetchTeams();
-const result = await predictMatch({ team_a: "Argentina", team_b: "Francia" });
+const result = await predictMatch({ team_a_id: "argentina", team_b_id: "france" });
 ```
 
 La URL base se configura con la variable de entorno `NEXT_PUBLIC_API_URL` (default: `http://localhost:8000`).

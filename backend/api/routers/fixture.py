@@ -10,7 +10,7 @@ import asyncio
 
 from fastapi import APIRouter, Query, Request
 
-from ..constants import flag
+from ..constants import flag, team_id
 from ..schemas import FixtureMatch
 
 router = APIRouter()
@@ -42,6 +42,8 @@ async def get_fixture(
                 id=m["id"],
                 date=m["date"],
                 time_utc=m["time_utc"],
+                team_a_id=team_id(ta),
+                team_b_id=team_id(tb),
                 team_a=ta,
                 team_b=tb,
                 team_a_es=TEAM_EN_TO_ES.get(ta, ta),

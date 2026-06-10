@@ -28,6 +28,12 @@ import difflib
 import sys
 from datetime import date, timedelta
 
+# Forzar UTF-8 en la consola de Windows para mostrar tildes y ñ correctamente.
+if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if sys.platform == "win32" and hasattr(sys.stdin, "reconfigure"):
+    sys.stdin.reconfigure(encoding="utf-8")
+
 from data.ingest import WC2026_TEAMS
 
 # ---------------------------------------------------------------------------
