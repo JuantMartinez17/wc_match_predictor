@@ -1,22 +1,133 @@
-import type { PredictResponse } from "@/types";
+import type { PredictResponse, ScoreProbability } from "@/types";
 import FlagImage from "./flag-image";
 
 interface Props {
   result: PredictResponse;
-  compact?: boolean;
 }
 
-// Color del equipo favorecido en un marcador dado.
+// Paleta de equipos (DESIGN.md): A = navy, B = wine, empate = subtle.
 const NAVY = "#183A70";
 const WINE = "#7C2946";
 const DRAW = "#A8A29E";
 
+/** Color del equipo favorecido en un marcador dado. */
 function scoreWinnerColor(a: number, b: number): string {
   if (a === b) return DRAW;
   return a > b ? NAVY : WINE;
 }
 
-export default function PredictionResult({ result, compact = false }: Props) {
+// ── Subcomponentes compartidos ────────────────────────────────────────────────
+
+/** Leyenda color → equipo (a11y: el color siempre va acompañado de texto). */
+function WinnerLegend({ teamA, teamB }: { teamA: string; teamB: string }) {
+  const items: [string, string][] = [
+    [NAVY, teamA],
+    [DRAW, "Empate"],
+    [WINE, teamB],
+  ];
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#6B6B6B]">
+      {items.map(([color, label]) => (
+        <span key={label} className="flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full" style={{ background: color }} />
+          {label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/** Grilla de marcadores más probables, coloreados por equipo favorecido. */
+function Scorelines({
+  scorelines,
+  teamA,
+  teamB,
+  dense = false,
+}: {
+  scorelines: ScoreProbability[];
+  teamA: string;
+  teamB: string;
+  dense?: boolean;
+}) {
+  if (scorelines.length === 0) return null;
+  return (
+    <div>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-[#A8A29E]">
+          Marcadores más probables
+        </p>
+        <WinnerLegend teamA={teamA} teamB={teamB} />
+      </div>
+      <div className="grid grid-cols-4 gap-2">
+        {scorelines.slice(0, 8).map((s, i) => {
+          const color = scoreWinnerColor(s.score_a, s.score_b);
+          return (
+            <div
+              key={i}
+              className={`flex flex-col items-center rounded-lg border border-[#E8E6E1] ${
+                dense ? "px-1 py-2" : "px-2 py-3"
+              }`}
+              style={{ borderBottom: `2px solid ${color}` }}
+            >
+              <span
+                className={`font-bold ${dense ? "text-sm" : "text-base"}`}
+                style={{ color }}
+              >
+                {s.score_a}–{s.score_b}
+              </span>
+              <span className="mt-0.5 text-xs text-[#A8A29E]">
+                {Math.round(s.probability * 100)}%
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Estado de la formación de un equipo (confirmada / por confirmar). */
+function FormationRow({
+  flag,
+  name,
+  confirmed,
+  desc,
+}: {
+  flag: string;
+  name: string;
+  confirmed: boolean;
+  desc: string;
+}) {
+  return (
+    <div className="flex items-start gap-2.5">
+      <FlagImage iso2={flag} name={name} size="xs" />
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="text-sm font-medium text-[#1B1B1B]">{name}</span>
+          <span
+            className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.6875rem] font-medium ${
+              confirmed
+                ? "bg-[#EEF2F9] text-[#183A70]"
+                : "bg-[#F8F7F5] text-[#6B6B6B]"
+            }`}
+          >
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${
+                confirmed ? "bg-[#183A70]" : "bg-[#A8A29E]"
+              }`}
+            />
+            {confirmed ? "Formación confirmada" : "Formación por confirmar"}
+          </span>
+        </div>
+        {desc && <p className="mt-0.5 text-xs leading-5 text-[#6B6B6B]">{desc}</p>}
+      </div>
+    </div>
+  );
+}
+
+// ── Componente principal ──────────────────────────────────────────────────────
+
+export default function PredictionResult({ result }: Props) {
   const {
     team_a_es,
     team_b_es,
@@ -34,92 +145,30 @@ export default function PredictionResult({ result, compact = false }: Props) {
     home_team,
     squad_desc_a,
     squad_desc_b,
+    lineup_confirmed_a,
+    lineup_confirmed_b,
     is_knockout,
     p_penalties,
     p_advance_a,
     p_advance_b,
   } = result;
 
-  const pAp = Math.round(p_a * 100);
-  const pDp = Math.round(p_draw * 100);
-  const pBp = Math.round(p_b * 100);
-
-  // ── Compact variant (inside fixture cards) ──────────────────────────────────
-  if (compact) {
-    return (
-      <div className="space-y-3">
-        {/* Segmented bar */}
-        <div>
-          <div className="flex h-2 overflow-hidden rounded-full">
-            <div style={{ width: `${pAp}%` }} className="bg-[#183A70]" />
-            <div style={{ width: `${pDp}%` }} className="bg-[#C8C4BE]" />
-            <div style={{ width: `${pBp}%` }} className="bg-[#7C2946]" />
-          </div>
-          <div className="mt-2 flex justify-between text-xs">
-            <span>
-              <span className="font-semibold text-[#183A70]">{pAp}%</span>
-              <span className="ml-1 text-[#A8A29E]">local</span>
-            </span>
-            <span className="text-[#A8A29E]">Empate {pDp}%</span>
-            <span>
-              <span className="font-semibold text-[#7C2946]">{pBp}%</span>
-              <span className="ml-1 text-[#A8A29E]">visitante</span>
-            </span>
-          </div>
-        </div>
-
-        {/* xG row */}
-        <div className="flex items-center justify-between rounded-lg bg-[#F8F7F5] px-4 py-2">
-          <span className="font-semibold text-sm text-[#1B1B1B]">
-            {xg_a.toFixed(1)} xG
-          </span>
-          <span className="text-xs text-[#A8A29E]">goles esperados</span>
-          <span className="font-semibold text-sm text-[#1B1B1B]">
-            {xg_b.toFixed(1)} xG
-          </span>
-        </div>
-
-        {/* Top scoreline */}
-        {top_scorelines[0] && (
-          <p className="text-center text-xs text-[#6B6B6B]">
-            Marcador más probable:{" "}
-            <span className="font-semibold text-[#1B1B1B]">
-              {top_scorelines[0].score_a}–{top_scorelines[0].score_b}
-            </span>{" "}
-            ({Math.round(top_scorelines[0].probability * 100)}%)
-          </p>
-        )}
-
-        {/* Knockout extras (compact) */}
-        {is_knockout && p_advance_a != null && p_advance_b != null && (
-          <p className="text-center text-xs text-[#6B6B6B]">
-            Avanza{" "}
-            <span className="font-semibold text-[#183A70]">
-              {team_a_es} {Math.round(p_advance_a * 100)}%
-            </span>{" "}
-            ·{" "}
-            <span className="font-semibold text-[#7C2946]">
-              {team_b_es} {Math.round(p_advance_b * 100)}%
-            </span>
-          </p>
-        )}
-      </div>
-    );
-  }
-
   // ── Winner callout derivation ──────────────────────────────────────────────
   const drawMostLikely = p_draw >= p_a && p_draw >= p_b;
   const favorsA = p_a >= p_b;
   const winnerName = drawMostLikely ? "Empate" : favorsA ? team_a_es : team_b_es;
+  const winnerFlag = drawMostLikely ? null : favorsA ? flag_a : flag_b;
+  const winnerHeadline = drawMostLikely ? "Empate" : `Gana ${winnerName}`;
   const winnerProb = drawMostLikely ? p_draw : Math.max(p_a, p_b);
   const confidence =
     winnerProb >= 0.6 ? "Alta" : winnerProb >= 0.45 ? "Media" : "Baja";
+  const topScore = top_scorelines[0];
 
   const isHome = !neutral && home_team != null;
 
-  // ── Full variant (predictor section) ───────────────────────────────────────
+  // Contenido sin marco: el contenedor (card o modal) lo provee cada caller.
   return (
-    <div className="space-y-6 rounded-2xl border border-[#E8E6E1] bg-white p-8">
+    <div className="space-y-6">
       {/* Teams header */}
       <div className="flex items-center gap-4">
         <div className="flex flex-1 flex-col items-center gap-2">
@@ -143,9 +192,7 @@ export default function PredictionResult({ result, compact = false }: Props) {
       <div className="flex justify-center">
         <span
           className={`rounded-full px-3.5 py-1 text-xs font-medium ${
-            isHome
-              ? "bg-[#EEF2F9] text-[#183A70]"
-              : "bg-[#F8F7F5] text-[#6B6B6B]"
+            isHome ? "bg-[#EEF2F9] text-[#183A70]" : "bg-[#F8F7F5] text-[#6B6B6B]"
           }`}
         >
           {venue_label}
@@ -208,49 +255,7 @@ export default function PredictionResult({ result, compact = false }: Props) {
       </div>
 
       {/* Top scorelines */}
-      {top_scorelines.length > 0 && (
-        <div>
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs font-semibold uppercase tracking-widest text-[#A8A29E]">
-              Marcadores más probables
-            </p>
-            {/* Leyenda color → equipo favorecido (a11y: color + texto) */}
-            <div className="flex items-center gap-3 text-xs text-[#6B6B6B]">
-              <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full" style={{ background: NAVY }} />
-                {team_a_es}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full" style={{ background: DRAW }} />
-                Empate
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full" style={{ background: WINE }} />
-                {team_b_es}
-              </span>
-            </div>
-          </div>
-          <div className="grid grid-cols-4 gap-2">
-            {top_scorelines.slice(0, 8).map((s, i) => {
-              const color = scoreWinnerColor(s.score_a, s.score_b);
-              return (
-                <div
-                  key={i}
-                  className="flex flex-col items-center rounded-lg border border-[#E8E6E1] px-2 py-3"
-                  style={{ borderBottom: `2px solid ${color}` }}
-                >
-                  <span className="text-base font-bold" style={{ color }}>
-                    {s.score_a}–{s.score_b}
-                  </span>
-                  <span className="mt-0.5 text-xs text-[#A8A29E]">
-                    {Math.round(s.probability * 100)}%
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <Scorelines scorelines={top_scorelines} teamA={team_a_es} teamB={team_b_es} />
 
       {/* Knockout advance probabilities */}
       {is_knockout && p_advance_a != null && p_advance_b != null && (
@@ -292,42 +297,63 @@ export default function PredictionResult({ result, compact = false }: Props) {
         <p className="text-sm leading-7 text-[#6B6B6B]">{narrative}</p>
       </div>
 
-      {/* Plantilla / lineup considerada */}
-      {(squad_desc_a || squad_desc_b) && (
-        <div className="rounded-xl border border-[#E8E6E1] px-5 py-4">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-[#A8A29E]">
-            Plantilla considerada
-          </p>
-          <div className="space-y-2.5">
-            <div className="flex items-start gap-2.5">
-              <FlagImage iso2={flag_a} name={team_a_es} size="xs" />
-              <div className="min-w-0">
-                <span className="text-sm font-medium text-[#1B1B1B]">
-                  {team_a_es}
-                </span>
-                <p className="text-xs leading-5 text-[#6B6B6B]">{squad_desc_a}</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-2.5">
-              <FlagImage iso2={flag_b} name={team_b_es} size="xs" />
-              <div className="min-w-0">
-                <span className="text-sm font-medium text-[#1B1B1B]">
-                  {team_b_es}
-                </span>
-                <p className="text-xs leading-5 text-[#6B6B6B]">{squad_desc_b}</p>
-              </div>
-            </div>
-          </div>
+      {/* Plantilla / formación */}
+      <div className="rounded-xl border border-[#E8E6E1] px-5 py-4">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-[#A8A29E]">
+          Plantilla y formación
+        </p>
+        <div className="space-y-3">
+          <FormationRow
+            flag={flag_a}
+            name={team_a_es}
+            confirmed={lineup_confirmed_a}
+            desc={squad_desc_a}
+          />
+          <FormationRow
+            flag={flag_b}
+            name={team_b_es}
+            confirmed={lineup_confirmed_b}
+            desc={squad_desc_b}
+          />
         </div>
-      )}
+      </div>
 
       {/* Winner callout */}
       <div className="rounded-xl bg-[#F7F2E6] px-6 py-5">
         <p className="text-xs font-semibold uppercase tracking-widest text-[#A8894A]">
           Resultado más probable
         </p>
-        <p className="mt-1.5 text-2xl font-bold text-[#A8894A]">{winnerName}</p>
-        <p className="mt-1 text-sm text-[#6B6B6B]">Confianza: {confidence}</p>
+        <div className="mt-2 flex items-center gap-4">
+          {/* Ganador */}
+          <div className="flex min-w-0 items-center gap-3">
+            {winnerFlag && (
+              <FlagImage iso2={winnerFlag} name={winnerName} size="md" className="shadow-sm" />
+            )}
+            <div className="min-w-0">
+              <p className="truncate text-2xl font-bold text-[#A8894A]">
+                {winnerHeadline}
+              </p>
+              <p className="mt-0.5 text-sm text-[#6B6B6B]">
+                {Math.round(winnerProb * 100)}% · confianza {confidence.toLowerCase()}
+              </p>
+            </div>
+          </div>
+
+          {/* Marcador más probable */}
+          {topScore && (
+            <div className="ml-auto shrink-0 text-right">
+              <p className="text-xs uppercase tracking-widest text-[#A8894A]">
+                Marcador
+              </p>
+              <p className="text-xl font-bold text-[#1B1B1B]">
+                {topScore.score_a}–{topScore.score_b}
+              </p>
+              <p className="text-xs text-[#6B6B6B]">
+                {Math.round(topScore.probability * 100)}%
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

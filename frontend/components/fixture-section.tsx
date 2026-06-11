@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 import type { FixtureMatch, PredictResponse } from "@/types";
 import { fetchFixture, predictMatch } from "@/lib/api";
 import PredictionResult from "./prediction-result";
 import FlagImage from "./flag-image";
+import Modal from "./modal";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -55,117 +56,159 @@ function MatchCard({ match }: { match: FixtureMatch }) {
   const [prediction, setPrediction] = useState<PredictResponse | null>(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const titleId = useId();
 
   const isLive = match.status === "en juego";
   const statusStyle =
     STATUS_STYLE[match.status] ?? "text-[#6B6B6B] bg-[#F8F7F5]";
   const statusLabel = STATUS_LABEL[match.status] ?? match.status;
+  const isFinished = match.status === "finalizado";
   const hasScore =
     match.score_a !== "" &&
     match.score_b !== "" &&
     match.score_a !== "None" &&
     match.score_b !== "None";
 
-  async function handleToggle() {
-    if (prediction) {
-      setOpen((v) => !v);
-      return;
-    }
+  // Abre el modal y dispara la predicción la primera vez (luego queda cacheada).
+  async function handleOpen() {
+    setOpen(true);
+    if (prediction || loading) return;
     setLoading(true);
+    setError(null);
     try {
       const res = await predictMatch({
         team_a: match.team_a,
         team_b: match.team_b,
+        date: match.date,
       });
       setPrediction(res);
-      setOpen(true);
-    } catch {
-      // fail silently — button stays available to retry
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "No se pudo calcular la predicción"
+      );
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div
-      className={`overflow-hidden rounded-2xl border bg-white shadow-[0_1px_3px_rgba(0,0,0,0.06)] ${
-        isLive ? "border-[#C95863] ring-1 ring-[#C95863]" : "border-[#E8E6E1]"
-      }`}
-    >
-      <div className="p-6">
-        {/* Meta row */}
-        <div className="mb-4 flex items-center justify-between">
-          <span className="text-xs text-[#A8A29E]">
-            {match.time_utc} UTC
-          </span>
-          <span
-            className={`flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyle}`}
-          >
-            {isLive && (
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-600" />
-            )}
-            {statusLabel}
-          </span>
-        </div>
-
-        {/* Teams */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex flex-1 flex-col items-center gap-2">
-            <FlagImage iso2={match.flag_a} name={match.team_a_es} size="md" />
-            <span className="text-center text-sm font-semibold leading-tight text-[#1B1B1B]">
-              {match.team_a_es}
+    <>
+      <div
+        className={`overflow-hidden rounded-2xl border bg-white shadow-[0_1px_3px_rgba(0,0,0,0.06)] ${
+          isLive ? "border-[#C95863] ring-1 ring-[#C95863]" : "border-[#E8E6E1]"
+        }`}
+      >
+        <div className="p-6">
+          {/* Meta row */}
+          <div className="mb-4 flex items-center justify-between">
+            <span className="text-xs text-[#A8A29E]">{match.time_utc} UTC</span>
+            <span
+              className={`flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyle}`}
+            >
+              {isLive && (
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-600" />
+              )}
+              {statusLabel}
             </span>
           </div>
 
-          <div className="flex flex-col items-center gap-0.5">
-            {hasScore ? (
-              <span className="text-2xl font-bold text-[#1B1B1B]">
-                {match.score_a} – {match.score_b}
+          {/* Teams */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-1 flex-col items-center gap-2">
+              <FlagImage iso2={match.flag_a} name={match.team_a_es} size="md" />
+              <span className="text-center text-sm font-semibold leading-tight text-[#1B1B1B]">
+                {match.team_a_es}
               </span>
-            ) : (
-              <span className="text-sm font-semibold text-[#C8C4BE]">vs</span>
-            )}
+            </div>
+
+            <div className="flex flex-col items-center gap-0.5">
+              {hasScore ? (
+                <span className="text-2xl font-bold text-[#1B1B1B]">
+                  {match.score_a} – {match.score_b}
+                </span>
+              ) : (
+                <span className="text-sm font-semibold text-[#C8C4BE]">vs</span>
+              )}
+            </div>
+
+            <div className="flex flex-1 flex-col items-center gap-2">
+              <FlagImage iso2={match.flag_b} name={match.team_b_es} size="md" />
+              <span className="text-center text-sm font-semibold leading-tight text-[#1B1B1B]">
+                {match.team_b_es}
+              </span>
+            </div>
           </div>
 
-          <div className="flex flex-1 flex-col items-center gap-2">
-            <FlagImage iso2={match.flag_b} name={match.team_b_es} size="md" />
-            <span className="text-center text-sm font-semibold leading-tight text-[#1B1B1B]">
+          {/* Round + venue */}
+          {(match.round || match.venue) && (
+            <p className="mt-3 text-center text-xs text-[#A8A29E]">
+              {[match.round, match.venue].filter(Boolean).join(" · ")}
+            </p>
+          )}
+        </div>
+
+        {/* Predict button */}
+        <div className="border-t border-[#E8E6E1] px-6 py-3">
+          <button
+            type="button"
+            onClick={handleOpen}
+            className="w-full rounded-sm text-center text-xs font-semibold uppercase tracking-widest text-[#183A70] transition-colors hover:text-[#224989] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#183A70] focus-visible:ring-offset-2"
+          >
+            {isFinished ? "Ver análisis" : "Ver predicción"}
+          </button>
+        </div>
+      </div>
+
+      {/* Modal con la predicción completa */}
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        labelledBy={titleId}
+        header={
+          <div className="min-w-0">
+            <h3
+              id={titleId}
+              className="truncate text-base font-semibold text-[#1B1B1B]"
+            >
+              {match.team_a_es}{" "}
+              <span className="font-normal text-[#A8A29E]">vs</span>{" "}
               {match.team_b_es}
-            </span>
+            </h3>
+            <p className="mt-0.5 truncate text-xs capitalize text-[#A8A29E]">
+              {[
+                formatDay(match.date),
+                match.time_utc ? `${match.time_utc} UTC` : "",
+                match.round,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
           </div>
-        </div>
-
-        {/* Round + venue */}
-        {(match.round || match.venue) && (
-          <p className="mt-3 text-center text-xs text-[#A8A29E]">
-            {[match.round, match.venue].filter(Boolean).join(" · ")}
-          </p>
+        }
+      >
+        {loading && (
+          <div className="flex justify-center py-16">
+            <span className="h-7 w-7 animate-spin rounded-full border-2 border-[#E8E6E1] border-t-[#183A70]" />
+          </div>
         )}
-      </div>
-
-      {/* Predict button */}
-      <div className="border-t border-[#E8E6E1] px-6 py-3">
-        <button
-          type="button"
-          onClick={handleToggle}
-          disabled={loading}
-          className="w-full rounded-sm text-center text-xs font-semibold uppercase tracking-widest text-[#183A70] transition-colors hover:text-[#224989] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#183A70] focus-visible:ring-offset-2 disabled:opacity-40"
-        >
-          {loading
-            ? "Calculando..."
-            : open
-            ? "Ocultar predicción"
-            : "Ver predicción"}
-        </button>
-      </div>
-
-      {/* Inline prediction */}
-      {open && prediction && (
-        <div className="border-t border-[#E8E6E1] p-6">
-          <PredictionResult result={prediction} compact />
-        </div>
-      )}
-    </div>
+        {error && (
+          <div className="py-8">
+            <p className="rounded-xl bg-[#FAEDEF] px-4 py-3 text-sm text-[#C95863]">
+              {error}
+            </p>
+            <button
+              type="button"
+              onClick={handleOpen}
+              className="mt-4 rounded-xl border border-[#E8E6E1] px-5 py-2.5 text-sm font-semibold text-[#6B6B6B] transition-colors hover:bg-[#F8F7F5]"
+            >
+              Reintentar
+            </button>
+          </div>
+        )}
+        {prediction && !loading && <PredictionResult result={prediction} />}
+      </Modal>
+    </>
   );
 }
 
@@ -251,7 +294,7 @@ export default function FixtureSection() {
                 )}
                 {formatDay(date)}
               </h3>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {grouped[date].map((m) => (
                   <MatchCard key={m.id} match={m} />
                 ))}

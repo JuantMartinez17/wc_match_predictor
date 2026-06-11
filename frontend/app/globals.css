@@ -149,3 +149,38 @@
     @apply font-sans;
   }
 }
+
+/* Modal nativo <dialog> — fade-in micro (DESIGN.md § Motion) */
+dialog::backdrop {
+  background: rgba(27, 27, 27, 0.45);
+}
+dialog[open] {
+  animation: modal-in 0.25s ease-out;
+}
+dialog[open]::backdrop {
+  animation: backdrop-in 0.25s ease-out;
+}
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  dialog[open],
+  dialog[open]::backdrop {
+    animation: none;
+  }
+}

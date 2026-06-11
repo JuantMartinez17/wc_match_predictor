@@ -203,7 +203,9 @@ export default function PredictorSection() {
         {/* Result */}
         {result && (
           <div id="predictor-result" className="mt-2 max-w-2xl scroll-mt-20">
-            <PredictionResult result={result} />
+            <div className="rounded-2xl border border-[#E8E6E1] bg-white p-8">
+              <PredictionResult result={result} />
+            </div>
           </div>
         )}
       </div>

@@ -67,6 +67,8 @@ export interface PredictResponse {
   // Plantilla
   squad_desc_a: string;
   squad_desc_b: string;
+  lineup_confirmed_a: boolean;
+  lineup_confirmed_b: boolean;
 
   // Narrativa
   narrative: string;
