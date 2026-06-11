@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { ChevronDown, Search, X } from "lucide-react";
 import type { Team } from "@/types";
+import FlagImage from "./flag-image";
 
 interface Props {
   teams: Team[];
@@ -48,11 +49,7 @@ export default function TeamPicker({
       >
         {value ? (
           <>
-            <img
-              src={`https://flagcdn.com/w40/${value.flag}.png`}
-              alt={value.name_es}
-              className="h-5 w-[30px] shrink-0 rounded-[2px] object-cover"
-            />
+            <FlagImage iso2={value.flag} name={value.name_es} size="xs" />
             <span className="font-medium text-[#1B1B1B]">{value.name_es}</span>
           </>
         ) : (
@@ -112,11 +109,7 @@ export default function TeamPicker({
                         : ""
                     }`}
                   >
-                    <img
-                      src={`https://flagcdn.com/w40/${team.flag}.png`}
-                      alt={team.name_es}
-                      className="h-5 w-[30px] shrink-0 rounded-[2px] object-cover"
-                    />
+                    <FlagImage iso2={team.flag} name={team.name_es} size="xs" />
                     {team.name_es}
                   </button>
                 </li>

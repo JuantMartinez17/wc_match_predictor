@@ -1,4 +1,5 @@
 import type { PredictResponse } from "@/types";
+import FlagImage from "./flag-image";
 
 interface Props {
   result: PredictResponse;
@@ -91,11 +92,7 @@ export default function PredictionResult({ result, compact = false }: Props) {
       {/* Teams header */}
       <div className="flex items-center gap-4">
         <div className="flex flex-1 flex-col items-center gap-2">
-          <img
-            src={`https://flagcdn.com/w80/${flag_a}.png`}
-            alt={team_a_es}
-            className="h-[52px] w-[78px] rounded-[6px] object-cover shadow-sm"
-          />
+          <FlagImage iso2={flag_a} name={team_a_es} size="lg" className="shadow-sm" />
           <span className="text-center text-lg font-semibold text-[#1B1B1B]">
             {team_a_es}
           </span>
@@ -104,11 +101,7 @@ export default function PredictionResult({ result, compact = false }: Props) {
           vs
         </span>
         <div className="flex flex-1 flex-col items-center gap-2">
-          <img
-            src={`https://flagcdn.com/w80/${flag_b}.png`}
-            alt={team_b_es}
-            className="h-[52px] w-[78px] rounded-[6px] object-cover shadow-sm"
-          />
+          <FlagImage iso2={flag_b} name={team_b_es} size="lg" className="shadow-sm" />
           <span className="text-center text-lg font-semibold text-[#1B1B1B]">
             {team_b_es}
           </span>

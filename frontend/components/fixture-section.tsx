@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import type { FixtureMatch, PredictResponse } from "@/types";
 import { fetchFixture, predictMatch } from "@/lib/api";
 import PredictionResult from "./prediction-result";
+import FlagImage from "./flag-image";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -90,11 +91,7 @@ function MatchCard({ match }: { match: FixtureMatch }) {
         {/* Teams */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex flex-1 flex-col items-center gap-2">
-            <img
-              src={`https://flagcdn.com/w80/${match.flag_a}.png`}
-              alt={match.team_a_es}
-              className="h-10 w-[60px] rounded-[4px] object-cover"
-            />
+            <FlagImage iso2={match.flag_a} name={match.team_a_es} size="md" />
             <span className="text-center text-sm font-semibold leading-tight text-[#1B1B1B]">
               {match.team_a_es}
             </span>
@@ -111,11 +108,7 @@ function MatchCard({ match }: { match: FixtureMatch }) {
           </div>
 
           <div className="flex flex-1 flex-col items-center gap-2">
-            <img
-              src={`https://flagcdn.com/w80/${match.flag_b}.png`}
-              alt={match.team_b_es}
-              className="h-10 w-[60px] rounded-[4px] object-cover"
-            />
+            <FlagImage iso2={match.flag_b} name={match.team_b_es} size="md" />
             <span className="text-center text-sm font-semibold leading-tight text-[#1B1B1B]">
               {match.team_b_es}
             </span>
