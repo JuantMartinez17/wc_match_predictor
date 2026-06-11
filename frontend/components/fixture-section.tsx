@@ -6,8 +6,7 @@ import { fetchFixture, predictMatch } from "@/lib/api";
 import PredictionResult from "./prediction-result";
 import FlagImage from "./flag-image";
 import Modal from "./modal";
-
-// ── Helpers ────────────────────────────────────────────────────────────────
+import { useLanguage } from "@/lib/i18n";
 
 const STATUS_STYLE: Record<string, string> = {
   "en juego": "text-emerald-700 bg-emerald-50 dark:text-emerald-300/90 dark:bg-emerald-900/20",
@@ -19,40 +18,17 @@ const STATUS_STYLE: Record<string, string> = {
   programado: "text-ink-muted bg-canvas",
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  "en juego": "En juego",
-  descanso: "Descanso",
-  finalizado: "Finalizado",
-  postergado: "Postergado",
-  cancelado: "Cancelado",
-  suspendido: "Suspendido",
-  programado: "Programado",
-};
-
-function formatDay(dateStr: string): string {
+function formatDay(dateStr: string, dateLocale: string): string {
   const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("es-AR", {
+  return new Date(y, m - 1, d).toLocaleDateString(dateLocale, {
     weekday: "long",
     day: "numeric",
     month: "long",
   });
 }
 
-/** Devuelve "Hoy" / "Mañana" si corresponde, si no null. */
-function relativeLabel(dateStr: string): string | null {
-  const today = new Date();
-  const todayStr = today.toISOString().slice(0, 10);
-  const tomorrow = new Date(today.getTime() + 86400000)
-    .toISOString()
-    .slice(0, 10);
-  if (dateStr === todayStr) return "Hoy";
-  if (dateStr === tomorrow) return "Mañana";
-  return null;
-}
-
-// ── Match card ─────────────────────────────────────────────────────────────
-
 function MatchCard({ match }: { match: FixtureMatch }) {
+  const { t } = useLanguage();
   const [prediction, setPrediction] = useState<PredictResponse | null>(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -60,9 +36,8 @@ function MatchCard({ match }: { match: FixtureMatch }) {
   const titleId = useId();
 
   const isLive = match.status === "en juego";
-  const statusStyle =
-    STATUS_STYLE[match.status] ?? "text-ink-muted bg-canvas";
-  const statusLabel = STATUS_LABEL[match.status] ?? match.status;
+  const statusStyle = STATUS_STYLE[match.status] ?? "text-ink-muted bg-canvas";
+  const statusLabel = t.fixture.status[match.status] ?? match.status;
   const isFinished = match.status === "finalizado";
   const hasScore =
     match.score_a !== "" &&
@@ -70,7 +45,6 @@ function MatchCard({ match }: { match: FixtureMatch }) {
     match.score_a !== "None" &&
     match.score_b !== "None";
 
-  // Abre el modal y dispara la predicción la primera vez (luego queda cacheada).
   async function handleOpen() {
     setOpen(true);
     if (prediction || loading) return;
@@ -84,11 +58,7 @@ function MatchCard({ match }: { match: FixtureMatch }) {
       });
       setPrediction(res);
     } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : "No pudimos calcular la predicción. Intentá de nuevo."
-      );
+      setError(e instanceof Error ? e.message : t.fixture.errorPredict);
     } finally {
       setLoading(false);
     }
@@ -102,9 +72,10 @@ function MatchCard({ match }: { match: FixtureMatch }) {
         }`}
       >
         <div className="p-6">
-          {/* Meta row */}
           <div className="mb-4 flex items-center justify-between">
-            <span className="text-xs text-ink-subtle">{match.time_utc} UTC</span>
+            <span className="text-xs text-ink-subtle">
+              {match.time_utc} {t.fixture.utcSuffix}
+            </span>
             <span
               className={`flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyle}`}
             >
@@ -115,7 +86,6 @@ function MatchCard({ match }: { match: FixtureMatch }) {
             </span>
           </div>
 
-          {/* Teams */}
           <div className="flex items-center justify-between gap-2">
             <div className="flex flex-1 flex-col items-center gap-2">
               <FlagImage iso2={match.flag_a} name={match.team_a_es} size="md" />
@@ -130,7 +100,9 @@ function MatchCard({ match }: { match: FixtureMatch }) {
                   {match.score_a} – {match.score_b}
                 </span>
               ) : (
-                <span className="text-sm font-semibold text-ink-subtle">vs</span>
+                <span className="text-sm font-semibold text-ink-subtle">
+                  {t.fixture.vs}
+                </span>
               )}
             </div>
 
@@ -142,7 +114,6 @@ function MatchCard({ match }: { match: FixtureMatch }) {
             </div>
           </div>
 
-          {/* Round + venue */}
           {(match.round || match.venue) && (
             <p className="mt-3 text-center text-xs text-ink-subtle">
               {[match.round, match.venue].filter(Boolean).join(" · ")}
@@ -150,37 +121,32 @@ function MatchCard({ match }: { match: FixtureMatch }) {
           )}
         </div>
 
-        {/* Predict button */}
         <div className="border-t border-line px-6 py-3">
           <button
             type="button"
             onClick={handleOpen}
             className="w-full rounded-sm text-center text-xs font-semibold uppercase tracking-widest text-brand transition-colors hover:text-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
           >
-            {isFinished ? "Ver análisis" : "Ver predicción"}
+            {isFinished ? t.fixture.viewAnalysis : t.fixture.viewPrediction}
           </button>
         </div>
       </div>
 
-      {/* Modal con la predicción completa */}
       <Modal
         open={open}
         onClose={() => setOpen(false)}
         labelledBy={titleId}
         header={
           <div className="min-w-0">
-            <h3
-              id={titleId}
-              className="truncate text-base font-semibold text-ink"
-            >
+            <h3 id={titleId} className="truncate text-base font-semibold text-ink">
               {match.team_a_es}{" "}
-              <span className="font-normal text-ink-subtle">vs</span>{" "}
+              <span className="font-normal text-ink-subtle">{t.fixture.vs}</span>{" "}
               {match.team_b_es}
             </h3>
             <p className="mt-0.5 truncate text-xs capitalize text-ink-subtle">
               {[
-                formatDay(match.date),
-                match.time_utc ? `${match.time_utc} UTC` : "",
+                formatDay(match.date, t.meta.dateLocale),
+                match.time_utc ? `${match.time_utc} ${t.fixture.utcSuffix}` : "",
                 match.round,
               ]
                 .filter(Boolean)
@@ -204,7 +170,7 @@ function MatchCard({ match }: { match: FixtureMatch }) {
               onClick={handleOpen}
               className="mt-4 rounded-xl border border-line px-5 py-2.5 text-sm font-semibold text-ink-muted transition-colors hover:bg-canvas"
             >
-              Reintentar
+              {t.fixture.retry}
             </button>
           </div>
         )}
@@ -214,9 +180,8 @@ function MatchCard({ match }: { match: FixtureMatch }) {
   );
 }
 
-// ── Section ────────────────────────────────────────────────────────────────
-
 export default function FixtureSection() {
+  const { t } = useLanguage();
   const [matches, setMatches] = useState<FixtureMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -232,11 +197,7 @@ export default function FixtureSection() {
         if (!cancelled) setMatches(data);
       } catch (e) {
         if (!cancelled)
-          setError(
-            e instanceof Error
-              ? e.message
-              : "No pudimos cargar el fixture. Intentá de nuevo."
-          );
+          setError(e instanceof Error ? e.message : t.fixture.errorLoad);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -245,9 +206,8 @@ export default function FixtureSection() {
     return () => {
       cancelled = true;
     };
-  }, [daysAhead]);
+  }, [daysAhead, t.fixture.errorLoad]);
 
-  // Group matches by date
   const grouped = matches.reduce<Record<string, FixtureMatch[]>>((acc, m) => {
     if (!acc[m.date]) acc[m.date] = [];
     acc[m.date].push(m);
@@ -255,21 +215,27 @@ export default function FixtureSection() {
   }, {});
   const sortedDates = Object.keys(grouped).sort();
 
+  function relativeLabel(dateStr: string): string | null {
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
+    const tomorrow = new Date(today.getTime() + 86400000).toISOString().slice(0, 10);
+    if (dateStr === todayStr) return t.fixture.today;
+    if (dateStr === tomorrow) return t.fixture.tomorrow;
+    return null;
+  }
+
   return (
     <section id="fixture" className="mx-auto max-w-7xl px-6 py-20 md:px-12">
-      {/* Heading */}
       <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-ink-subtle">
-        Fixture
+        {t.fixture.sectionLabel}
       </p>
       <h2 className="font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
-        Próximos partidos
+        {t.fixture.heading}
       </h2>
       <p className="mt-2 text-sm leading-6 text-ink-muted">
-        Tocá &quot;Ver predicción&quot; en cualquier partido y mirá el análisis
-        completo.
+        {t.fixture.description}
       </p>
 
-      {/* States */}
       {loading && (
         <div className="mt-12 flex justify-center">
           <span className="h-6 w-6 animate-spin rounded-full border-2 border-line border-t-brand" />
@@ -283,12 +249,9 @@ export default function FixtureSection() {
       )}
 
       {!loading && !error && matches.length === 0 && (
-        <p className="mt-8 text-sm text-ink-subtle">
-          No hay partidos programados en este período.
-        </p>
+        <p className="mt-8 text-sm text-ink-subtle">{t.fixture.emptyState}</p>
       )}
 
-      {/* Grouped by date */}
       {!loading && sortedDates.length > 0 && (
         <div className="mt-10 space-y-10">
           {sortedDates.map((date) => (
@@ -299,7 +262,7 @@ export default function FixtureSection() {
                     {relativeLabel(date)}
                   </span>
                 )}
-                {formatDay(date)}
+                {formatDay(date, t.meta.dateLocale)}
               </h3>
               <div className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {grouped[date].map((m) => (
@@ -311,7 +274,6 @@ export default function FixtureSection() {
         </div>
       )}
 
-      {/* Load more */}
       {!loading && matches.length > 0 && daysAhead < 30 && (
         <div className="mt-10 flex justify-center">
           <button
@@ -319,7 +281,7 @@ export default function FixtureSection() {
             onClick={() => setDaysAhead((v) => Math.min(v + 7, 30))}
             className="rounded-xl border border-line bg-surface px-7 py-3 text-sm font-semibold text-ink-muted transition-colors hover:bg-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
           >
-            Ver más partidos
+            {t.fixture.loadMore}
           </button>
         </div>
       )}
