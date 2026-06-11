@@ -5,15 +5,14 @@ interface Props {
   result: PredictResponse;
 }
 
-// Paleta de equipos (DESIGN.md): A = navy, B = wine, empate = subtle.
-const NAVY = "#183A70";
-const WINE = "#7C2946";
-const DRAW = "#A8A29E";
+const TEAM_A = "#1D4ED8"; // blue-700
+const TEAM_B = "#B91C1C"; // red-700
+const DRAW   = "#D97706"; // amber-600
 
 /** Color del equipo favorecido en un marcador dado. */
 function scoreWinnerColor(a: number, b: number): string {
   if (a === b) return DRAW;
-  return a > b ? NAVY : WINE;
+  return a > b ? TEAM_A : TEAM_B;
 }
 
 // ── Subcomponentes compartidos ────────────────────────────────────────────────
@@ -21,9 +20,9 @@ function scoreWinnerColor(a: number, b: number): string {
 /** Leyenda color → equipo (a11y: el color siempre va acompañado de texto). */
 function WinnerLegend({ teamA, teamB }: { teamA: string; teamB: string }) {
   const items: [string, string][] = [
-    [NAVY, teamA],
+    [TEAM_A, teamA],
     [DRAW, "Empate"],
-    [WINE, teamB],
+    [TEAM_B, teamB],
   ];
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#6B6B6B]">
@@ -207,9 +206,9 @@ export default function PredictionResult({ result }: Props) {
         <div className="space-y-4">
           {(
             [
-              { label: team_a_es, value: p_a, color: NAVY },
+              { label: team_a_es, value: p_a, color: TEAM_A },
               { label: "Empate", value: p_draw, color: DRAW },
-              { label: team_b_es, value: p_b, color: WINE },
+              { label: team_b_es, value: p_b, color: TEAM_B },
             ] as const
           ).map(({ label, value, color }) => (
             <div key={label}>
@@ -261,19 +260,19 @@ export default function PredictionResult({ result }: Props) {
       {is_knockout && p_advance_a != null && p_advance_b != null && (
         <div className="space-y-3">
           <div className="flex gap-3">
-            <div className="flex-1 rounded-xl bg-[#EEF2F9] p-4 text-center">
-              <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#183A70]">
+            <div className="flex-1 rounded-xl p-4 text-center" style={{ backgroundColor: `${TEAM_A}18` }}>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-widest" style={{ color: TEAM_A }}>
                 Avanza {team_a_es}
               </p>
-              <p className="text-2xl font-bold text-[#183A70]">
+              <p className="text-2xl font-bold" style={{ color: TEAM_A }}>
                 {Math.round(p_advance_a * 100)}%
               </p>
             </div>
-            <div className="flex-1 rounded-xl bg-[#F5EEF1] p-4 text-center">
-              <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#7C2946]">
+            <div className="flex-1 rounded-xl p-4 text-center" style={{ backgroundColor: `${TEAM_B}18` }}>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-widest" style={{ color: TEAM_B }}>
                 Avanza {team_b_es}
               </p>
-              <p className="text-2xl font-bold text-[#7C2946]">
+              <p className="text-2xl font-bold" style={{ color: TEAM_B }}>
                 {Math.round(p_advance_b * 100)}%
               </p>
             </div>
