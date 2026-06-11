@@ -182,6 +182,10 @@ async def predict_match(req: PredictRequest, request: Request) -> PredictRespons
     xi_val_a, xi_desc_a = _resolve_xi_value(team_a, lineup_a, squad_a)
     xi_val_b, xi_desc_b = _resolve_xi_value(team_b, lineup_b, squad_b)
 
+    # Formación confirmada = se obtuvo y cruzó el 11 inicial real (ver _resolve_xi_value)
+    lineup_confirmed_a = xi_desc_a.startswith("XI confirmado")
+    lineup_confirmed_b = xi_desc_b.startswith("XI confirmado")
+
     # Predicción (CPU-bound → thread pool)
     def _run_predict():
         if req.knockout:
@@ -246,6 +250,8 @@ async def predict_match(req: PredictRequest, request: Request) -> PredictRespons
         venue_label=venue_label,
         squad_desc_a=xi_desc_a,
         squad_desc_b=xi_desc_b,
+        lineup_confirmed_a=lineup_confirmed_a,
+        lineup_confirmed_b=lineup_confirmed_b,
         narrative=narrative,
         is_knockout=req.knockout,
         p_penalties=p_penalties,

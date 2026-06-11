@@ -76,6 +76,8 @@ class PredictResponse(BaseModel):
     # Info de plantilla / lineup
     squad_desc_a: str
     squad_desc_b: str
+    lineup_confirmed_a: bool = False  # True si hay 11 inicial confirmado
+    lineup_confirmed_b: bool = False
 
     # Narrativa en español sin jerga estadística
     narrative: str
