@@ -6,6 +6,16 @@ interface Props {
   compact?: boolean;
 }
 
+// Color del equipo favorecido en un marcador dado.
+const NAVY = "#183A70";
+const WINE = "#7C2946";
+const DRAW = "#A8A29E";
+
+function scoreWinnerColor(a: number, b: number): string {
+  if (a === b) return DRAW;
+  return a > b ? NAVY : WINE;
+}
+
 export default function PredictionResult({ result, compact = false }: Props) {
   const {
     team_a_es,
@@ -20,7 +30,12 @@ export default function PredictionResult({ result, compact = false }: Props) {
     top_scorelines,
     narrative,
     venue_label,
+    neutral,
+    home_team,
+    squad_desc_a,
+    squad_desc_b,
     is_knockout,
+    p_penalties,
     p_advance_a,
     p_advance_b,
   } = result;
@@ -74,6 +89,20 @@ export default function PredictionResult({ result, compact = false }: Props) {
             ({Math.round(top_scorelines[0].probability * 100)}%)
           </p>
         )}
+
+        {/* Knockout extras (compact) */}
+        {is_knockout && p_advance_a != null && p_advance_b != null && (
+          <p className="text-center text-xs text-[#6B6B6B]">
+            Avanza{" "}
+            <span className="font-semibold text-[#183A70]">
+              {team_a_es} {Math.round(p_advance_a * 100)}%
+            </span>{" "}
+            ·{" "}
+            <span className="font-semibold text-[#7C2946]">
+              {team_b_es} {Math.round(p_advance_b * 100)}%
+            </span>
+          </p>
+        )}
       </div>
     );
   }
@@ -85,6 +114,8 @@ export default function PredictionResult({ result, compact = false }: Props) {
   const winnerProb = drawMostLikely ? p_draw : Math.max(p_a, p_b);
   const confidence =
     winnerProb >= 0.6 ? "Alta" : winnerProb >= 0.45 ? "Media" : "Baja";
+
+  const isHome = !neutral && home_team != null;
 
   // ── Full variant (predictor section) ───────────────────────────────────────
   return (
@@ -108,6 +139,19 @@ export default function PredictionResult({ result, compact = false }: Props) {
         </div>
       </div>
 
+      {/* Venue / sede */}
+      <div className="flex justify-center">
+        <span
+          className={`rounded-full px-3.5 py-1 text-xs font-medium ${
+            isHome
+              ? "bg-[#EEF2F9] text-[#183A70]"
+              : "bg-[#F8F7F5] text-[#6B6B6B]"
+          }`}
+        >
+          {venue_label}
+        </span>
+      </div>
+
       {/* Probability bars */}
       <div>
         <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-[#A8A29E]">
@@ -116,9 +160,9 @@ export default function PredictionResult({ result, compact = false }: Props) {
         <div className="space-y-4">
           {(
             [
-              { label: team_a_es, value: p_a, color: "#183A70" },
-              { label: "Empate", value: p_draw, color: "#A8A29E" },
-              { label: team_b_es, value: p_b, color: "#7C2946" },
+              { label: team_a_es, value: p_a, color: NAVY },
+              { label: "Empate", value: p_draw, color: DRAW },
+              { label: team_b_es, value: p_b, color: WINE },
             ] as const
           ).map(({ label, value, color }) => (
             <div key={label}>
@@ -166,46 +210,77 @@ export default function PredictionResult({ result, compact = false }: Props) {
       {/* Top scorelines */}
       {top_scorelines.length > 0 && (
         <div>
-          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-[#A8A29E]">
-            Marcadores más probables
-          </p>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#A8A29E]">
+              Marcadores más probables
+            </p>
+            {/* Leyenda color → equipo favorecido (a11y: color + texto) */}
+            <div className="flex items-center gap-3 text-xs text-[#6B6B6B]">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full" style={{ background: NAVY }} />
+                {team_a_es}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full" style={{ background: DRAW }} />
+                Empate
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full" style={{ background: WINE }} />
+                {team_b_es}
+              </span>
+            </div>
+          </div>
           <div className="grid grid-cols-4 gap-2">
-            {top_scorelines.slice(0, 8).map((s, i) => (
-              <div
-                key={i}
-                className="flex flex-col items-center rounded-lg border border-[#E8E6E1] px-2 py-3"
-              >
-                <span className="text-base font-bold text-[#1B1B1B]">
-                  {s.score_a}–{s.score_b}
-                </span>
-                <span className="mt-0.5 text-xs text-[#A8A29E]">
-                  {Math.round(s.probability * 100)}%
-                </span>
-              </div>
-            ))}
+            {top_scorelines.slice(0, 8).map((s, i) => {
+              const color = scoreWinnerColor(s.score_a, s.score_b);
+              return (
+                <div
+                  key={i}
+                  className="flex flex-col items-center rounded-lg border border-[#E8E6E1] px-2 py-3"
+                  style={{ borderBottom: `2px solid ${color}` }}
+                >
+                  <span className="text-base font-bold" style={{ color }}>
+                    {s.score_a}–{s.score_b}
+                  </span>
+                  <span className="mt-0.5 text-xs text-[#A8A29E]">
+                    {Math.round(s.probability * 100)}%
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
 
       {/* Knockout advance probabilities */}
       {is_knockout && p_advance_a != null && p_advance_b != null && (
-        <div className="flex gap-3">
-          <div className="flex-1 rounded-xl bg-[#EEF2F9] p-4 text-center">
-            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#183A70]">
-              Avanza {team_a_es}
-            </p>
-            <p className="text-2xl font-bold text-[#183A70]">
-              {Math.round(p_advance_a * 100)}%
-            </p>
+        <div className="space-y-3">
+          <div className="flex gap-3">
+            <div className="flex-1 rounded-xl bg-[#EEF2F9] p-4 text-center">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#183A70]">
+                Avanza {team_a_es}
+              </p>
+              <p className="text-2xl font-bold text-[#183A70]">
+                {Math.round(p_advance_a * 100)}%
+              </p>
+            </div>
+            <div className="flex-1 rounded-xl bg-[#F5EEF1] p-4 text-center">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#7C2946]">
+                Avanza {team_b_es}
+              </p>
+              <p className="text-2xl font-bold text-[#7C2946]">
+                {Math.round(p_advance_b * 100)}%
+              </p>
+            </div>
           </div>
-          <div className="flex-1 rounded-xl bg-[#F5EEF1] p-4 text-center">
-            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#7C2946]">
-              Avanza {team_b_es}
+          {p_penalties != null && (
+            <p className="text-center text-xs text-[#6B6B6B]">
+              Probabilidad de definición por penales:{" "}
+              <span className="font-semibold text-[#1B1B1B]">
+                {Math.round(p_penalties * 100)}%
+              </span>
             </p>
-            <p className="text-2xl font-bold text-[#7C2946]">
-              {Math.round(p_advance_b * 100)}%
-            </p>
-          </div>
+          )}
         </div>
       )}
 
@@ -217,6 +292,35 @@ export default function PredictionResult({ result, compact = false }: Props) {
         <p className="text-sm leading-7 text-[#6B6B6B]">{narrative}</p>
       </div>
 
+      {/* Plantilla / lineup considerada */}
+      {(squad_desc_a || squad_desc_b) && (
+        <div className="rounded-xl border border-[#E8E6E1] px-5 py-4">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-[#A8A29E]">
+            Plantilla considerada
+          </p>
+          <div className="space-y-2.5">
+            <div className="flex items-start gap-2.5">
+              <FlagImage iso2={flag_a} name={team_a_es} size="xs" />
+              <div className="min-w-0">
+                <span className="text-sm font-medium text-[#1B1B1B]">
+                  {team_a_es}
+                </span>
+                <p className="text-xs leading-5 text-[#6B6B6B]">{squad_desc_a}</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2.5">
+              <FlagImage iso2={flag_b} name={team_b_es} size="xs" />
+              <div className="min-w-0">
+                <span className="text-sm font-medium text-[#1B1B1B]">
+                  {team_b_es}
+                </span>
+                <p className="text-xs leading-5 text-[#6B6B6B]">{squad_desc_b}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Winner callout */}
       <div className="rounded-xl bg-[#F7F2E6] px-6 py-5">
         <p className="text-xs font-semibold uppercase tracking-widest text-[#A8894A]">
@@ -225,9 +329,6 @@ export default function PredictionResult({ result, compact = false }: Props) {
         <p className="mt-1.5 text-2xl font-bold text-[#A8894A]">{winnerName}</p>
         <p className="mt-1 text-sm text-[#6B6B6B]">Confianza: {confidence}</p>
       </div>
-
-      {/* Venue */}
-      <p className="text-xs text-[#A8A29E]">{venue_label}</p>
     </div>
   );
 }
