@@ -1,4 +1,5 @@
 import { ArrowRight } from "lucide-react";
+import Countdown from "./countdown";
 
 export default function Hero() {
   return (
@@ -17,6 +18,10 @@ export default function Hero() {
         reales. Elegí dos selecciones y obtené un análisis detallado del resultado
         probable.
       </p>
+
+      <div className="mt-10">
+        <Countdown />
+      </div>
 
       <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row">
         <a
