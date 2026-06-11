@@ -59,15 +59,15 @@ export default function ModelPicker({ value, onChange }: Props) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-2 rounded-[10px] border border-[#E8E6E1] bg-white px-3 py-1.5 text-left text-sm transition hover:border-[#183A70]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#183A70] focus-visible:ring-offset-2"
+        className="flex w-full items-center gap-2 rounded-[10px] border border-line bg-surface px-3 py-1.5 text-left text-sm transition hover:border-brand/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
       >
-        <span className="shrink-0 text-xs font-semibold uppercase tracking-widest text-[#A8A29E]">
+        <span className="shrink-0 text-xs font-semibold uppercase tracking-widest text-ink-subtle">
           Modelo
         </span>
-        <span className="font-medium text-[#1B1B1B]">{selected.label}</span>
+        <span className="font-medium text-ink">{selected.label}</span>
         <ChevronDown
           size={14}
-          className={`ml-auto shrink-0 text-[#A8A29E] transition-transform duration-150 ${
+          className={`ml-auto shrink-0 text-ink-subtle transition-transform duration-150 ${
             open ? "rotate-180" : ""
           }`}
         />
@@ -75,7 +75,7 @@ export default function ModelPicker({ value, onChange }: Props) {
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute z-20 mt-1 w-full min-w-[18rem] overflow-hidden rounded-[10px] border border-[#E8E6E1] bg-white shadow-lg">
+        <div className="absolute z-20 mt-1 w-full min-w-[18rem] overflow-hidden rounded-[10px] border border-line bg-surface shadow-lg">
           <ul className="py-1">
             {MODELS.map((m) => {
               const active = m.value === value;
@@ -87,29 +87,29 @@ export default function ModelPicker({ value, onChange }: Props) {
                       onChange(m.value);
                       setOpen(false);
                     }}
-                    className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-[#F8F7F5] ${
-                      active ? "bg-[#EEF2F9]" : ""
+                    className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-canvas ${
+                      active ? "bg-brand-soft" : ""
                     }`}
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-[#1B1B1B]">
+                        <span className="text-sm font-medium text-ink">
                           {m.label}
                         </span>
                         {m.recommended && (
-                          <span className="rounded-full bg-[#EEF2F9] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#183A70]">
+                          <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand">
                             Recomendado
                           </span>
                         )}
                       </div>
-                      <p className="mt-0.5 text-xs leading-5 text-[#6B6B6B]">
+                      <p className="mt-0.5 text-xs leading-5 text-ink-muted">
                         {m.description}
                       </p>
                     </div>
                     {active && (
                       <Check
                         size={15}
-                        className="mt-0.5 shrink-0 text-[#183A70]"
+                        className="mt-0.5 shrink-0 text-brand"
                       />
                     )}
                   </button>

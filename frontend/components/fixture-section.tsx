@@ -10,13 +10,13 @@ import Modal from "./modal";
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 const STATUS_STYLE: Record<string, string> = {
-  "en juego": "text-emerald-700 bg-emerald-50",
-  descanso: "text-amber-700 bg-amber-50",
-  finalizado: "text-[#6B6B6B] bg-[#F8F7F5]",
-  postergado: "text-[#C95863] bg-[#FAEDEF]",
-  cancelado: "text-[#C95863] bg-[#FAEDEF]",
-  suspendido: "text-[#C95863] bg-[#FAEDEF]",
-  programado: "text-[#6B6B6B] bg-[#F8F7F5]",
+  "en juego": "text-emerald-700 bg-emerald-50 dark:text-emerald-300/90 dark:bg-emerald-900/20",
+  descanso:   "text-amber-700  bg-amber-50  dark:text-amber-300/90  dark:bg-amber-900/20",
+  finalizado: "text-ink-muted bg-canvas",
+  postergado: "text-danger bg-danger-soft",
+  cancelado:  "text-danger bg-danger-soft",
+  suspendido: "text-danger bg-danger-soft",
+  programado: "text-ink-muted bg-canvas",
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -61,7 +61,7 @@ function MatchCard({ match }: { match: FixtureMatch }) {
 
   const isLive = match.status === "en juego";
   const statusStyle =
-    STATUS_STYLE[match.status] ?? "text-[#6B6B6B] bg-[#F8F7F5]";
+    STATUS_STYLE[match.status] ?? "text-ink-muted bg-canvas";
   const statusLabel = STATUS_LABEL[match.status] ?? match.status;
   const isFinished = match.status === "finalizado";
   const hasScore =
@@ -97,19 +97,19 @@ function MatchCard({ match }: { match: FixtureMatch }) {
   return (
     <>
       <div
-        className={`overflow-hidden rounded-2xl border bg-white shadow-[0_1px_3px_rgba(0,0,0,0.06)] ${
-          isLive ? "border-[#C95863] ring-1 ring-[#C95863]" : "border-[#E8E6E1]"
+        className={`overflow-hidden rounded-2xl border bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.06)] ${
+          isLive ? "border-danger ring-1 ring-danger" : "border-line"
         }`}
       >
         <div className="p-6">
           {/* Meta row */}
           <div className="mb-4 flex items-center justify-between">
-            <span className="text-xs text-[#A8A29E]">{match.time_utc} UTC</span>
+            <span className="text-xs text-ink-subtle">{match.time_utc} UTC</span>
             <span
               className={`flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyle}`}
             >
               {isLive && (
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-600" />
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
               )}
               {statusLabel}
             </span>
@@ -119,24 +119,24 @@ function MatchCard({ match }: { match: FixtureMatch }) {
           <div className="flex items-center justify-between gap-2">
             <div className="flex flex-1 flex-col items-center gap-2">
               <FlagImage iso2={match.flag_a} name={match.team_a_es} size="md" />
-              <span className="text-center text-sm font-semibold leading-tight text-[#1B1B1B]">
+              <span className="text-center text-sm font-semibold leading-tight text-ink">
                 {match.team_a_es}
               </span>
             </div>
 
             <div className="flex flex-col items-center gap-0.5">
               {hasScore ? (
-                <span className="text-2xl font-bold text-[#1B1B1B]">
+                <span className="text-2xl font-bold text-ink">
                   {match.score_a} – {match.score_b}
                 </span>
               ) : (
-                <span className="text-sm font-semibold text-[#C8C4BE]">vs</span>
+                <span className="text-sm font-semibold text-ink-subtle">vs</span>
               )}
             </div>
 
             <div className="flex flex-1 flex-col items-center gap-2">
               <FlagImage iso2={match.flag_b} name={match.team_b_es} size="md" />
-              <span className="text-center text-sm font-semibold leading-tight text-[#1B1B1B]">
+              <span className="text-center text-sm font-semibold leading-tight text-ink">
                 {match.team_b_es}
               </span>
             </div>
@@ -144,18 +144,18 @@ function MatchCard({ match }: { match: FixtureMatch }) {
 
           {/* Round + venue */}
           {(match.round || match.venue) && (
-            <p className="mt-3 text-center text-xs text-[#A8A29E]">
+            <p className="mt-3 text-center text-xs text-ink-subtle">
               {[match.round, match.venue].filter(Boolean).join(" · ")}
             </p>
           )}
         </div>
 
         {/* Predict button */}
-        <div className="border-t border-[#E8E6E1] px-6 py-3">
+        <div className="border-t border-line px-6 py-3">
           <button
             type="button"
             onClick={handleOpen}
-            className="w-full rounded-sm text-center text-xs font-semibold uppercase tracking-widest text-[#183A70] transition-colors hover:text-[#224989] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#183A70] focus-visible:ring-offset-2"
+            className="w-full rounded-sm text-center text-xs font-semibold uppercase tracking-widest text-brand transition-colors hover:text-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
           >
             {isFinished ? "Ver análisis" : "Ver predicción"}
           </button>
@@ -171,13 +171,13 @@ function MatchCard({ match }: { match: FixtureMatch }) {
           <div className="min-w-0">
             <h3
               id={titleId}
-              className="truncate text-base font-semibold text-[#1B1B1B]"
+              className="truncate text-base font-semibold text-ink"
             >
               {match.team_a_es}{" "}
-              <span className="font-normal text-[#A8A29E]">vs</span>{" "}
+              <span className="font-normal text-ink-subtle">vs</span>{" "}
               {match.team_b_es}
             </h3>
-            <p className="mt-0.5 truncate text-xs capitalize text-[#A8A29E]">
+            <p className="mt-0.5 truncate text-xs capitalize text-ink-subtle">
               {[
                 formatDay(match.date),
                 match.time_utc ? `${match.time_utc} UTC` : "",
@@ -191,7 +191,7 @@ function MatchCard({ match }: { match: FixtureMatch }) {
       >
         {loading && (
           <div className="flex justify-center py-16">
-            <span className="h-7 w-7 animate-spin rounded-full border-2 border-[#E8E6E1] border-t-[#183A70]" />
+            <span className="h-7 w-7 animate-spin rounded-full border-2 border-line border-t-brand" />
           </div>
         )}
         {error && (
@@ -258,7 +258,7 @@ export default function FixtureSection() {
   return (
     <section id="fixture" className="mx-auto max-w-7xl px-6 py-20 md:px-12">
       {/* Heading */}
-      <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#A8A29E]">
+      <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-ink-subtle">
         Fixture
       </p>
       <h2 className="font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
@@ -272,7 +272,7 @@ export default function FixtureSection() {
       {/* States */}
       {loading && (
         <div className="mt-12 flex justify-center">
-          <span className="h-6 w-6 animate-spin rounded-full border-2 border-[#E8E6E1] border-t-[#183A70]" />
+          <span className="h-6 w-6 animate-spin rounded-full border-2 border-line border-t-brand" />
         </div>
       )}
 
@@ -293,9 +293,9 @@ export default function FixtureSection() {
         <div className="mt-10 space-y-10">
           {sortedDates.map((date) => (
             <div key={date}>
-              <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold capitalize text-[#6B6B6B]">
+              <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold capitalize text-ink-muted">
                 {relativeLabel(date) && (
-                  <span className="rounded-full bg-[#EEF2F9] px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-[#183A70]">
+                  <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-brand">
                     {relativeLabel(date)}
                   </span>
                 )}
@@ -317,7 +317,7 @@ export default function FixtureSection() {
           <button
             type="button"
             onClick={() => setDaysAhead((v) => Math.min(v + 7, 30))}
-            className="rounded-xl border border-[#E8E6E1] bg-white px-7 py-3 text-sm font-semibold text-[#6B6B6B] transition-colors hover:bg-[#F8F7F5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#183A70] focus-visible:ring-offset-2"
+            className="rounded-xl border border-line bg-surface px-7 py-3 text-sm font-semibold text-ink-muted transition-colors hover:bg-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
           >
             Ver más partidos
           </button>

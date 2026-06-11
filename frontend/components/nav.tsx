@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ThemeToggle from "./theme-toggle";
 
 export default function Nav() {
   return (
@@ -12,7 +13,7 @@ export default function Nav() {
         >
           Mundial 2026
         </Link>
-        <nav className="flex items-center gap-6">
+        <nav className="flex items-center gap-4">
           <a
             href="#predictor"
             className="text-sm font-medium text-ink-muted transition-colors hover:text-ink"
@@ -25,6 +26,7 @@ export default function Nav() {
           >
             Fixture
           </a>
+          <ThemeToggle />
         </nav>
       </div>
     </header>
