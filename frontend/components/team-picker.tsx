@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { ChevronDown, Search, X } from "lucide-react";
 import type { Team } from "@/types";
 import FlagImage from "./flag-image";
+import { useLanguage } from "@/lib/i18n";
 
 interface Props {
   teams: Team[];
@@ -17,16 +18,19 @@ export default function TeamPicker({
   teams,
   value,
   onChange,
-  placeholder = "Elegir selección",
+  placeholder,
   disabled,
 }: Props) {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const ref = useRef<HTMLDivElement>(null);
 
+  const resolvedPlaceholder = placeholder ?? t.teamPicker.placeholder;
+
   const filtered = query.trim()
-    ? teams.filter((t) =>
-        t.name_es.toLowerCase().includes(query.toLowerCase())
+    ? teams.filter((team) =>
+        team.name_es.toLowerCase().includes(query.toLowerCase())
       )
     : teams;
 
@@ -40,7 +44,6 @@ export default function TeamPicker({
 
   return (
     <div ref={ref} className="relative w-full">
-      {/* Trigger */}
       <button
         type="button"
         disabled={disabled}
@@ -53,7 +56,7 @@ export default function TeamPicker({
             <span className="font-medium text-ink">{value.name_es}</span>
           </>
         ) : (
-          <span className="text-ink-subtle">{placeholder}</span>
+          <span className="text-ink-subtle">{resolvedPlaceholder}</span>
         )}
         <ChevronDown
           size={14}
@@ -63,7 +66,6 @@ export default function TeamPicker({
         />
       </button>
 
-      {/* Dropdown */}
       {open && (
         <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-[10px] border border-line bg-surface shadow-lg">
           <div className="border-b border-line px-3 py-2.5">
@@ -73,7 +75,7 @@ export default function TeamPicker({
                 autoFocus
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Buscar..."
+                placeholder={t.teamPicker.search}
                 className="flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-ink-subtle"
               />
               {query && (
@@ -91,7 +93,7 @@ export default function TeamPicker({
           <ul className="max-h-56 overflow-y-auto py-1">
             {filtered.length === 0 ? (
               <li className="px-4 py-3 text-sm text-ink-subtle">
-                Sin resultados
+                {t.teamPicker.noResults}
               </li>
             ) : (
               filtered.map((team) => (
@@ -104,9 +106,7 @@ export default function TeamPicker({
                       setQuery("");
                     }}
                     className={`flex w-full items-center gap-3 px-4 py-2.5 text-sm text-ink transition-colors hover:bg-canvas ${
-                      value?.id === team.id
-                        ? "bg-brand-soft font-medium"
-                        : ""
+                      value?.id === team.id ? "bg-brand-soft font-medium" : ""
                     }`}
                   >
                     <FlagImage iso2={team.flag} name={team.name_es} size="xs" />

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Archivo } from "next/font/google";
+import LanguageProvider from "@/providers/language-provider";
 import "./globals.css";
 
-// Display font for headings — modern grotesque, refined (WC2026 visual identity).
 const archivo = Archivo({
   subsets: ["latin"],
   variable: "--font-display",
@@ -30,7 +30,9 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <LanguageProvider>{children}</LanguageProvider>
+      </body>
     </html>
   );
 }

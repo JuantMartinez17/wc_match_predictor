@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLanguage } from "@/lib/i18n";
 
-// Partido inaugural — Copa del Mundo 2026 (ver data/fixture.py: "2026-06-11T20:00Z").
 const KICKOFF = new Date("2026-06-11T20:00:00Z");
 
 interface Remaining {
@@ -42,6 +42,7 @@ function Tile({ value, label }: { value: number; label: string }) {
 }
 
 export default function Countdown() {
+  const { t } = useLanguage();
   const [time, setTime] = useState<Remaining | null>(null);
 
   useEffect(() => {
@@ -58,9 +59,7 @@ export default function Countdown() {
     return (
       <div className="flex items-center gap-2.5 rounded-full border border-line bg-surface px-5 py-2.5 shadow-sm">
         <span className="h-2 w-2 animate-pulse rounded-full bg-danger" />
-        <span className="text-sm font-semibold text-ink">
-          El Mundial ya está en marcha
-        </span>
+        <span className="text-sm font-semibold text-ink">{t.countdown.started}</span>
       </div>
     );
   }
@@ -68,16 +67,16 @@ export default function Countdown() {
   return (
     <div className="flex flex-col items-center gap-3 rounded-2xl border border-line bg-surface px-8 py-5 shadow-sm">
       <span className="text-xs font-semibold uppercase tracking-widest text-ink-muted">
-        El Mundial arranca en
+        {t.countdown.label}
       </span>
       <div className="flex items-start gap-5 md:gap-7">
-        <Tile value={time?.days ?? 0} label="días" />
+        <Tile value={time?.days ?? 0} label={t.countdown.days} />
         <span className="pt-1 text-2xl font-light text-line md:text-3xl">:</span>
-        <Tile value={time?.hours ?? 0} label="horas" />
+        <Tile value={time?.hours ?? 0} label={t.countdown.hours} />
         <span className="pt-1 text-2xl font-light text-line md:text-3xl">:</span>
-        <Tile value={time?.minutes ?? 0} label="min" />
+        <Tile value={time?.minutes ?? 0} label={t.countdown.min} />
         <span className="pt-1 text-2xl font-light text-line md:text-3xl">:</span>
-        <Tile value={time?.seconds ?? 0} label="seg" />
+        <Tile value={time?.seconds ?? 0} label={t.countdown.sec} />
       </div>
     </div>
   );
