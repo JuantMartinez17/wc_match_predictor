@@ -22,6 +22,7 @@ export type Translations = {
   fixture: {
     sectionLabel: string;
     heading: string;
+    rounds: Record<string, string>;
     description: string;
     emptyState: string;
     loadMore: string;

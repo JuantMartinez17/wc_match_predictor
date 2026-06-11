@@ -32,6 +32,15 @@ export const en: Translations = {
   fixture: {
     sectionLabel: "Fixture",
     heading: "Upcoming matches",
+    rounds: {
+      "group-stage": "Group Stage",
+      "round-of-32": "Round of 32",
+      "round-of-16": "Round of 16",
+      "quarter-finals": "Quarter-finals",
+      "semi-finals": "Semi-finals",
+      final: "Final",
+      "third-place": "Third Place",
+    },
     description:
       'Tap "View prediction" on any match to see the full analysis.',
     emptyState: "No matches scheduled in this period.",

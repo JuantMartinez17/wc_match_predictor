@@ -32,6 +32,15 @@ export const es: Translations = {
   fixture: {
     sectionLabel: "Fixture",
     heading: "Próximos partidos",
+    rounds: {
+      "group-stage": "Fase de grupos",
+      "round-of-32": "Ronda de 32",
+      "round-of-16": "Octavos de final",
+      "quarter-finals": "Cuartos de final",
+      "semi-finals": "Semifinales",
+      final: "Final",
+      "third-place": "Tercer puesto",
+    },
     description:
       'Tocá "Ver predicción" en cualquier partido y mirá el análisis completo.',
     emptyState: "No hay partidos programados en este período.",

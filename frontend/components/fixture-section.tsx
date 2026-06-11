@@ -38,6 +38,9 @@ function MatchCard({ match }: { match: FixtureMatch }) {
   const isLive = match.status === "en juego";
   const statusStyle = STATUS_STYLE[match.status] ?? "text-ink-muted bg-canvas";
   const statusLabel = t.fixture.status[match.status] ?? match.status;
+  const roundLabel = match.round
+    ? (t.fixture.rounds[match.round.toLowerCase()] ?? match.round)
+    : "";
   const isFinished = match.status === "finalizado";
   const hasScore =
     match.score_a !== "" &&
@@ -114,9 +117,9 @@ function MatchCard({ match }: { match: FixtureMatch }) {
             </div>
           </div>
 
-          {(match.round || match.venue) && (
+          {(roundLabel || match.venue) && (
             <p className="mt-3 text-center text-xs text-ink-subtle">
-              {[match.round, match.venue].filter(Boolean).join(" · ")}
+              {[roundLabel, match.venue].filter(Boolean).join(" · ")}
             </p>
           )}
         </div>
@@ -147,7 +150,7 @@ function MatchCard({ match }: { match: FixtureMatch }) {
               {[
                 formatDay(match.date, t.meta.dateLocale),
                 match.time_utc ? `${match.time_utc} ${t.fixture.utcSuffix}` : "",
-                match.round,
+                roundLabel,
               ]
                 .filter(Boolean)
                 .join(" · ")}
