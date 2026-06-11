@@ -29,6 +29,9 @@
   --color-wc-red: var(--wc-red);
   --color-wc-green: var(--wc-green);
   --color-wc-blue: var(--wc-blue);
+  --color-result-a: var(--result-a);
+  --color-result-b: var(--result-b);
+  --color-result-draw: var(--result-draw);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -91,6 +94,10 @@
   --wc-red: #e4002b;      /* Canada */
   --wc-green: #009a44;    /* Mexico */
   --wc-blue: #0050b5;     /* USA */
+  /* Result visualization — team A / draw / team B */
+  --result-a: #1d4ed8;
+  --result-b: #b91c1c;
+  --result-draw: #d97706;
 
   --background: oklch(0.977 0.004 72);
   --foreground: oklch(0.145 0 0);
@@ -130,19 +137,23 @@
   /* WC2026 dark palette
      Inspired by editorial dark UIs: clear surface hierarchy, warm ink,
      brand shifted to readable royal-blue, gold enhanced for dark backgrounds. */
-  --canvas: #0d1117;     /* page bg — deep, just warm enough */
-  --surface: #161b22;    /* cards / panels — clear lift from canvas */
-  --line: #30363d;       /* borders — crisp, not harsh */
-  --ink: #e6edf3;        /* primary text — warm off-white */
-  --ink-muted: #8b949e;  /* secondary text */
-  --ink-subtle: #6e7681; /* labels / captions */
-  --brand: #4a7bca;      /* royal blue — readable on dark, feels navy */
+  --canvas: #0d1117;
+  --surface: #161b22;
+  --line: #30363d;
+  --ink: #cdd3da;        /* 82% white — editorial sweet spot, ~9:1 contrast */
+  --ink-muted: #8b949e;
+  --ink-subtle: #6e7681;
+  --brand: #4a7bca;
   --brand-hover: #5a8bd8;
-  --brand-soft: #112040; /* dark navy tint — clearly blue-tinted vs surface */
-  --gold: #e3b341;       /* brighter amber — pops on dark */
-  --gold-soft: #231905;  /* dark amber tint — clearly warm vs cool surfaces */
-  --danger: #f47067;     /* coral-red — vivid on dark */
+  --brand-soft: #112040;
+  --gold: #d4a84c;       /* same as light mode — warm, not electric */
+  --gold-soft: #231905;
+  --danger: #e06060;     /* muted coral — readable without shouting */
   --danger-soft: #2d0f0e;
+  /* Result visualization — desaturated for dark bg comfort */
+  --result-a: #5b89c4;
+  --result-b: #c45252;
+  --result-draw: #b8922c;
 
   /* Align shadcn tokens with WC2026 dark palette */
   --background: #0d1117;

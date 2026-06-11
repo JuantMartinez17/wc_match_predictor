@@ -10,11 +10,11 @@ import Modal from "./modal";
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 const STATUS_STYLE: Record<string, string> = {
-  "en juego": "text-emerald-600 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-900/30",
-  descanso: "text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-900/30",
+  "en juego": "text-emerald-700 bg-emerald-50 dark:text-emerald-300/90 dark:bg-emerald-900/20",
+  descanso:   "text-amber-700  bg-amber-50  dark:text-amber-300/90  dark:bg-amber-900/20",
   finalizado: "text-ink-muted bg-canvas",
   postergado: "text-danger bg-danger-soft",
-  cancelado: "text-danger bg-danger-soft",
+  cancelado:  "text-danger bg-danger-soft",
   suspendido: "text-danger bg-danger-soft",
   programado: "text-ink-muted bg-canvas",
 };

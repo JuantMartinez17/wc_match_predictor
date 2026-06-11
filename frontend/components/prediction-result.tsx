@@ -5,9 +5,9 @@ interface Props {
   result: PredictResponse;
 }
 
-const TEAM_A = "#1D4ED8"; // blue-700
-const TEAM_B = "#B91C1C"; // red-700
-const DRAW   = "#D97706"; // amber-600
+const TEAM_A = "var(--result-a)";
+const TEAM_B = "var(--result-b)";
+const DRAW   = "var(--result-draw)";
 
 /** Color del equipo favorecido en un marcador dado. */
 function scoreWinnerColor(a: number, b: number): string {
