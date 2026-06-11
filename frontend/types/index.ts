@@ -73,6 +73,8 @@ export interface PredictResponse {
   // Fuente de datos de plantilla
   squad_desc_a: string;
   squad_desc_b: string;
+  lineup_confirmed_a: boolean;
+  lineup_confirmed_b: boolean;
 
   // Narrativa en español lista para mostrar al usuario
   narrative: string;

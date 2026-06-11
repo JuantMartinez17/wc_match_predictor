@@ -1,0 +1,360 @@
+import type { PredictResponse, ScoreProbability } from "@/types";
+import FlagImage from "./flag-image";
+
+interface Props {
+  result: PredictResponse;
+}
+
+// Paleta de equipos (DESIGN.md): A = navy, B = wine, empate = subtle.
+const NAVY = "#183A70";
+const WINE = "#7C2946";
+const DRAW = "#A8A29E";
+
+/** Color del equipo favorecido en un marcador dado. */
+function scoreWinnerColor(a: number, b: number): string {
+  if (a === b) return DRAW;
+  return a > b ? NAVY : WINE;
+}
+
+// ── Subcomponentes compartidos ────────────────────────────────────────────────
+
+/** Leyenda color → equipo (a11y: el color siempre va acompañado de texto). */
+function WinnerLegend({ teamA, teamB }: { teamA: string; teamB: string }) {
+  const items: [string, string][] = [
+    [NAVY, teamA],
+    [DRAW, "Empate"],
+    [WINE, teamB],
+  ];
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#6B6B6B]">
+      {items.map(([color, label]) => (
+        <span key={label} className="flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full" style={{ background: color }} />
+          {label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/** Grilla de marcadores más probables, coloreados por equipo favorecido. */
+function Scorelines({
+  scorelines,
+  teamA,
+  teamB,
+  dense = false,
+}: {
+  scorelines: ScoreProbability[];
+  teamA: string;
+  teamB: string;
+  dense?: boolean;
+}) {
+  if (scorelines.length === 0) return null;
+  return (
+    <div>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-[#A8A29E]">
+          Marcadores más probables
+        </p>
+        <WinnerLegend teamA={teamA} teamB={teamB} />
+      </div>
+      <div className="grid grid-cols-4 gap-2">
+        {scorelines.slice(0, 8).map((s, i) => {
+          const color = scoreWinnerColor(s.score_a, s.score_b);
+          return (
+            <div
+              key={i}
+              className={`flex flex-col items-center rounded-lg border border-[#E8E6E1] ${
+                dense ? "px-1 py-2" : "px-2 py-3"
+              }`}
+              style={{ borderBottom: `2px solid ${color}` }}
+            >
+              <span
+                className={`font-bold ${dense ? "text-sm" : "text-base"}`}
+                style={{ color }}
+              >
+                {s.score_a}–{s.score_b}
+              </span>
+              <span className="mt-0.5 text-xs text-[#A8A29E]">
+                {Math.round(s.probability * 100)}%
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Estado de la formación de un equipo (confirmada / por confirmar). */
+function FormationRow({
+  flag,
+  name,
+  confirmed,
+  desc,
+}: {
+  flag: string;
+  name: string;
+  confirmed: boolean;
+  desc: string;
+}) {
+  return (
+    <div className="flex items-start gap-2.5">
+      <FlagImage iso2={flag} name={name} size="xs" />
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="text-sm font-medium text-[#1B1B1B]">{name}</span>
+          <span
+            className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.6875rem] font-medium ${
+              confirmed
+                ? "bg-[#EEF2F9] text-[#183A70]"
+                : "bg-[#F8F7F5] text-[#6B6B6B]"
+            }`}
+          >
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${
+                confirmed ? "bg-[#183A70]" : "bg-[#A8A29E]"
+              }`}
+            />
+            {confirmed ? "Formación confirmada" : "Formación por confirmar"}
+          </span>
+        </div>
+        {desc && <p className="mt-0.5 text-xs leading-5 text-[#6B6B6B]">{desc}</p>}
+      </div>
+    </div>
+  );
+}
+
+// ── Componente principal ──────────────────────────────────────────────────────
+
+export default function PredictionResult({ result }: Props) {
+  const {
+    team_a_es,
+    team_b_es,
+    flag_a,
+    flag_b,
+    p_a,
+    p_draw,
+    p_b,
+    xg_a,
+    xg_b,
+    top_scorelines,
+    narrative,
+    venue_label,
+    neutral,
+    home_team_id,
+    squad_desc_a,
+    squad_desc_b,
+    lineup_confirmed_a,
+    lineup_confirmed_b,
+    is_knockout,
+    p_penalties,
+    p_advance_a,
+    p_advance_b,
+  } = result;
+
+  // ── Winner callout derivation ──────────────────────────────────────────────
+  const drawMostLikely = p_draw >= p_a && p_draw >= p_b;
+  const favorsA = p_a >= p_b;
+  const winnerName = drawMostLikely ? "Empate" : favorsA ? team_a_es : team_b_es;
+  const winnerFlag = drawMostLikely ? null : favorsA ? flag_a : flag_b;
+  const winnerHeadline = drawMostLikely ? "Empate" : `Gana ${winnerName}`;
+  const winnerProb = drawMostLikely ? p_draw : Math.max(p_a, p_b);
+  const confidence =
+    winnerProb >= 0.6 ? "Alta" : winnerProb >= 0.45 ? "Media" : "Baja";
+  const topScore = top_scorelines[0];
+
+  const isHome = !neutral && home_team_id != null;
+
+  // Contenido sin marco: el contenedor (card o modal) lo provee cada caller.
+  return (
+    <div className="space-y-6">
+      {/* Teams header */}
+      <div className="flex items-center gap-4">
+        <div className="flex flex-1 flex-col items-center gap-2">
+          <FlagImage iso2={flag_a} name={team_a_es} size="lg" className="shadow-sm" />
+          <span className="text-center text-lg font-semibold text-[#1B1B1B]">
+            {team_a_es}
+          </span>
+        </div>
+        <span className="text-xs font-semibold uppercase tracking-widest text-[#A8A29E]">
+          vs
+        </span>
+        <div className="flex flex-1 flex-col items-center gap-2">
+          <FlagImage iso2={flag_b} name={team_b_es} size="lg" className="shadow-sm" />
+          <span className="text-center text-lg font-semibold text-[#1B1B1B]">
+            {team_b_es}
+          </span>
+        </div>
+      </div>
+
+      {/* Venue / sede */}
+      <div className="flex justify-center">
+        <span
+          className={`rounded-full px-3.5 py-1 text-xs font-medium ${
+            isHome ? "bg-[#EEF2F9] text-[#183A70]" : "bg-[#F8F7F5] text-[#6B6B6B]"
+          }`}
+        >
+          {venue_label}
+        </span>
+      </div>
+
+      {/* Probability bars */}
+      <div>
+        <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-[#A8A29E]">
+          Probabilidades a 90&apos;
+        </p>
+        <div className="space-y-4">
+          {(
+            [
+              { label: team_a_es, value: p_a, color: NAVY },
+              { label: "Empate", value: p_draw, color: DRAW },
+              { label: team_b_es, value: p_b, color: WINE },
+            ] as const
+          ).map(({ label, value, color }) => (
+            <div key={label}>
+              <div className="mb-1.5 flex justify-between text-sm">
+                <span className="font-medium text-[#1B1B1B]">{label}</span>
+                <span className="font-semibold" style={{ color }}>
+                  {Math.round(value * 100)}%
+                </span>
+              </div>
+              <div className="h-2.5 w-full overflow-hidden rounded-full bg-[#E8E6E1]">
+                <div
+                  className="h-2.5 rounded-full"
+                  style={{
+                    width: `${Math.round(value * 100)}%`,
+                    backgroundColor: color,
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Expected goals */}
+      <div className="flex items-center justify-between rounded-xl bg-[#F8F7F5] px-8 py-5">
+        <div className="text-center">
+          <p className="mb-1 text-xs uppercase tracking-widest text-[#A8A29E]">
+            xG {team_a_es}
+          </p>
+          <p className="font-mono text-3xl font-bold text-[#1B1B1B]">
+            {xg_a.toFixed(1)}
+          </p>
+        </div>
+        <span className="text-2xl font-light text-[#E8E6E1]">—</span>
+        <div className="text-center">
+          <p className="mb-1 text-xs uppercase tracking-widest text-[#A8A29E]">
+            xG {team_b_es}
+          </p>
+          <p className="font-mono text-3xl font-bold text-[#1B1B1B]">
+            {xg_b.toFixed(1)}
+          </p>
+        </div>
+      </div>
+
+      {/* Top scorelines */}
+      <Scorelines scorelines={top_scorelines} teamA={team_a_es} teamB={team_b_es} />
+
+      {/* Knockout advance probabilities */}
+      {is_knockout && p_advance_a != null && p_advance_b != null && (
+        <div className="space-y-3">
+          <div className="flex gap-3">
+            <div className="flex-1 rounded-xl bg-[#EEF2F9] p-4 text-center">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#183A70]">
+                Avanza {team_a_es}
+              </p>
+              <p className="text-2xl font-bold text-[#183A70]">
+                {Math.round(p_advance_a * 100)}%
+              </p>
+            </div>
+            <div className="flex-1 rounded-xl bg-[#F5EEF1] p-4 text-center">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#7C2946]">
+                Avanza {team_b_es}
+              </p>
+              <p className="text-2xl font-bold text-[#7C2946]">
+                {Math.round(p_advance_b * 100)}%
+              </p>
+            </div>
+          </div>
+          {p_penalties != null && (
+            <p className="text-center text-xs text-[#6B6B6B]">
+              Probabilidad de definición por penales:{" "}
+              <span className="font-semibold text-[#1B1B1B]">
+                {Math.round(p_penalties * 100)}%
+              </span>
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Narrative */}
+      <div className="rounded-xl bg-[#F8F7F5] px-5 py-4">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-[#A8A29E]">
+          Análisis
+        </p>
+        <p className="text-sm leading-7 text-[#6B6B6B]">{narrative}</p>
+      </div>
+
+      {/* Plantilla / formación */}
+      <div className="rounded-xl border border-[#E8E6E1] px-5 py-4">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-[#A8A29E]">
+          Plantilla y formación
+        </p>
+        <div className="space-y-3">
+          <FormationRow
+            flag={flag_a}
+            name={team_a_es}
+            confirmed={lineup_confirmed_a}
+            desc={squad_desc_a}
+          />
+          <FormationRow
+            flag={flag_b}
+            name={team_b_es}
+            confirmed={lineup_confirmed_b}
+            desc={squad_desc_b}
+          />
+        </div>
+      </div>
+
+      {/* Winner callout */}
+      <div className="rounded-xl bg-[#F7F2E6] px-6 py-5">
+        <p className="text-xs font-semibold uppercase tracking-widest text-[#A8894A]">
+          Resultado más probable
+        </p>
+        <div className="mt-2 flex items-center gap-4">
+          {/* Ganador */}
+          <div className="flex min-w-0 items-center gap-3">
+            {winnerFlag && (
+              <FlagImage iso2={winnerFlag} name={winnerName} size="md" className="shadow-sm" />
+            )}
+            <div className="min-w-0">
+              <p className="truncate text-2xl font-bold text-[#A8894A]">
+                {winnerHeadline}
+              </p>
+              <p className="mt-0.5 text-sm text-[#6B6B6B]">
+                {Math.round(winnerProb * 100)}% · confianza {confidence.toLowerCase()}
+              </p>
+            </div>
+          </div>
+
+          {/* Marcador más probable */}
+          {topScore && (
+            <div className="ml-auto shrink-0 text-right">
+              <p className="text-xs uppercase tracking-widest text-[#A8894A]">
+                Marcador
+              </p>
+              <p className="text-xl font-bold text-[#1B1B1B]">
+                {topScore.score_a}–{topScore.score_b}
+              </p>
+              <p className="text-xs text-[#6B6B6B]">
+                {Math.round(topScore.probability * 100)}%
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
