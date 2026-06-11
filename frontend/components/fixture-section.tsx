@@ -85,7 +85,9 @@ function MatchCard({ match }: { match: FixtureMatch }) {
       setPrediction(res);
     } catch (e) {
       setError(
-        e instanceof Error ? e.message : "No se pudo calcular la predicción"
+        e instanceof Error
+          ? e.message
+          : "No pudimos calcular la predicción. Intentá de nuevo."
       );
     } finally {
       setLoading(false);
@@ -194,13 +196,13 @@ function MatchCard({ match }: { match: FixtureMatch }) {
         )}
         {error && (
           <div className="py-8">
-            <p className="rounded-xl bg-[#FAEDEF] px-4 py-3 text-sm text-[#C95863]">
+            <p className="rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger">
               {error}
             </p>
             <button
               type="button"
               onClick={handleOpen}
-              className="mt-4 rounded-xl border border-[#E8E6E1] px-5 py-2.5 text-sm font-semibold text-[#6B6B6B] transition-colors hover:bg-[#F8F7F5]"
+              className="mt-4 rounded-xl border border-line px-5 py-2.5 text-sm font-semibold text-ink-muted transition-colors hover:bg-canvas"
             >
               Reintentar
             </button>
@@ -230,7 +232,11 @@ export default function FixtureSection() {
         if (!cancelled) setMatches(data);
       } catch (e) {
         if (!cancelled)
-          setError(e instanceof Error ? e.message : "Error al cargar fixture");
+          setError(
+            e instanceof Error
+              ? e.message
+              : "No pudimos cargar el fixture. Intentá de nuevo."
+          );
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -255,11 +261,12 @@ export default function FixtureSection() {
       <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#A8A29E]">
         Fixture
       </p>
-      <h2 className="text-[1.75rem] font-semibold leading-tight text-[#1B1B1B]">
+      <h2 className="font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
         Próximos partidos
       </h2>
-      <p className="mt-2 text-sm leading-6 text-[#6B6B6B]">
-        Hacé clic en &quot;Ver predicción&quot; para analizar cualquier partido.
+      <p className="mt-2 text-sm leading-6 text-ink-muted">
+        Tocá &quot;Ver predicción&quot; en cualquier partido y mirá el análisis
+        completo.
       </p>
 
       {/* States */}
@@ -270,14 +277,14 @@ export default function FixtureSection() {
       )}
 
       {error && (
-        <p className="mt-8 rounded-xl bg-[#FAEDEF] px-4 py-3 text-sm text-[#C95863]">
+        <p className="mt-8 rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger">
           {error}
         </p>
       )}
 
       {!loading && !error && matches.length === 0 && (
-        <p className="mt-8 text-sm text-[#A8A29E]">
-          No hay partidos en el período seleccionado.
+        <p className="mt-8 text-sm text-ink-subtle">
+          No hay partidos programados en este período.
         </p>
       )}
 
