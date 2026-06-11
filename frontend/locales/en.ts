@@ -62,6 +62,7 @@ export const en: Translations = {
       cancelado: "Cancelled",
       suspendido: "Suspended",
       programado: "Scheduled",
+      STATUS_FULL_TIME: "Full time",
     },
   },
   predictor: {
