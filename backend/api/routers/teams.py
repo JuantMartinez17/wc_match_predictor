@@ -1,14 +1,14 @@
 """
 backend/api/routers/teams.py
 ============================
-GET /api/teams — lista de los 48 equipos del Mundial 2026.
+GET /api/teams — lista de los 48 equipos del Mundial 2026 con sus IDs.
 """
 
 from __future__ import annotations
 
 from fastapi import APIRouter
 
-from ..constants import flag
+from ..constants import flag, team_id
 from ..schemas import Team
 
 router = APIRouter()
@@ -21,6 +21,7 @@ async def get_teams() -> list[Team]:
 
     return [
         Team(
+            id=team_id(t),
             canonical=t,
             name_es=TEAM_EN_TO_ES.get(t, t),
             flag=flag(t),

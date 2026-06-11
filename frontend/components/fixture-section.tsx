@@ -78,8 +78,8 @@ function MatchCard({ match }: { match: FixtureMatch }) {
     setError(null);
     try {
       const res = await predictMatch({
-        team_a: match.team_a,
-        team_b: match.team_b,
+        team_a_id: match.team_a_id,
+        team_b_id: match.team_b_id,
         date: match.date,
       });
       setPrediction(res);

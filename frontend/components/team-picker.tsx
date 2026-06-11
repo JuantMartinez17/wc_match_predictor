@@ -95,7 +95,7 @@ export default function TeamPicker({
               </li>
             ) : (
               filtered.map((team) => (
-                <li key={team.canonical}>
+                <li key={team.id}>
                   <button
                     type="button"
                     onClick={() => {
@@ -104,7 +104,7 @@ export default function TeamPicker({
                       setQuery("");
                     }}
                     className={`flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-[#F8F7F5] ${
-                      value?.canonical === team.canonical
+                      value?.id === team.id
                         ? "bg-[#EEF2F9] font-medium"
                         : ""
                     }`}

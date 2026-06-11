@@ -142,7 +142,7 @@ export default function PredictionResult({ result }: Props) {
     narrative,
     venue_label,
     neutral,
-    home_team,
+    home_team_id,
     squad_desc_a,
     squad_desc_b,
     lineup_confirmed_a,
@@ -164,7 +164,7 @@ export default function PredictionResult({ result }: Props) {
     winnerProb >= 0.6 ? "Alta" : winnerProb >= 0.45 ? "Media" : "Baja";
   const topScore = top_scorelines[0];
 
-  const isHome = !neutral && home_team != null;
+  const isHome = !neutral && home_team_id != null;
 
   // Contenido sin marco: el contenedor (card o modal) lo provee cada caller.
   return (

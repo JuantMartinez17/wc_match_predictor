@@ -36,8 +36,8 @@ export default function PredictorSection() {
     setResult(null);
     try {
       const res = await predictMatch({
-        team_a: teamA.canonical,
-        team_b: teamB.canonical,
+        team_a_id: teamA.id,
+        team_b_id: teamB.id,
         date: matchDate,
         knockout,
         model,
