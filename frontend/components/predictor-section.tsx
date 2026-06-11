@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, Calendar } from "lucide-react";
 import type { Team, PredictResponse } from "@/types";
 import TeamPicker from "./team-picker";
 import PredictionResult from "./prediction-result";
@@ -16,6 +16,9 @@ export default function PredictorSection() {
   const [teamB, setTeamB] = useState<Team | null>(null);
   const [knockout, setKnockout] = useState(false);
   const [model, setModel] = useState<Model>("dixon_coles");
+  const [matchDate, setMatchDate] = useState(() =>
+    new Date().toISOString().slice(0, 10)
+  );
   const [result, setResult] = useState<PredictResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +38,7 @@ export default function PredictorSection() {
       const res = await predictMatch({
         team_a: teamA.canonical,
         team_b: teamB.canonical,
+        date: matchDate,
         knockout,
         model,
       });
@@ -115,6 +119,18 @@ export default function PredictorSection() {
 
           {/* Options row */}
           <div className="mt-4 flex flex-wrap items-center gap-4">
+            {/* Date picker */}
+            <label className="flex items-center gap-2 rounded-[10px] border border-[#E8E6E1] bg-white px-3 py-1.5 text-sm text-[#1B1B1B] focus-within:ring-2 focus-within:ring-[#183A70] focus-within:ring-offset-2">
+              <Calendar size={14} className="shrink-0 text-[#A8A29E]" />
+              <input
+                type="date"
+                value={matchDate}
+                onChange={(e) => setMatchDate(e.target.value)}
+                aria-label="Fecha del partido"
+                className="bg-transparent text-sm text-[#1B1B1B] outline-none"
+              />
+            </label>
+
             {/* Knockout toggle */}
             <label className="flex cursor-pointer items-center gap-2.5">
               <button
