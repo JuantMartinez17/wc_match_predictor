@@ -318,8 +318,8 @@ export default function PredictionResult({ result }: Props) {
       </div>
 
       {/* Winner callout */}
-      <div className="rounded-xl bg-[#F7F2E6] px-6 py-5">
-        <p className="text-xs font-semibold uppercase tracking-widest text-[#A8894A]">
+      <div className="rounded-xl bg-gold-soft px-6 py-5">
+        <p className="text-xs font-semibold uppercase tracking-widest text-gold">
           Resultado más probable
         </p>
         <div className="mt-2 flex items-center gap-4">
@@ -329,7 +329,7 @@ export default function PredictionResult({ result }: Props) {
               <FlagImage iso2={winnerFlag} name={winnerName} size="md" className="shadow-sm" />
             )}
             <div className="min-w-0">
-              <p className="truncate text-2xl font-bold text-[#A8894A]">
+              <p className="truncate text-2xl font-bold text-gold">
                 {winnerHeadline}
               </p>
               <p className="mt-0.5 text-sm text-[#6B6B6B]">
@@ -341,7 +341,7 @@ export default function PredictionResult({ result }: Props) {
           {/* Marcador más probable */}
           {topScore && (
             <div className="ml-auto shrink-0 text-right">
-              <p className="text-xs uppercase tracking-widest text-[#A8894A]">
+              <p className="text-xs uppercase tracking-widest text-gold">
                 Marcador
               </p>
               <p className="text-xl font-bold text-[#1B1B1B]">

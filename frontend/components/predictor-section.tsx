@@ -49,7 +49,11 @@ export default function PredictorSection() {
           ?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 80);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error inesperado");
+      setError(
+        e instanceof Error
+          ? e.message
+          : "No pudimos calcular la predicción. Intentá de nuevo."
+      );
     } finally {
       setLoading(false);
     }
@@ -71,19 +75,19 @@ export default function PredictorSection() {
             <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#A8A29E]">
               Predictor
             </p>
-            <h2 className="text-[1.75rem] font-semibold leading-tight text-[#1B1B1B]">
+            <h2 className="font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
               Predecí un partido
             </h2>
-            <p className="mt-2 text-sm leading-6 text-[#6B6B6B]">
-              Elegí dos selecciones. El modelo calcula las probabilidades en
-              base a datos históricos reales.
+            <p className="mt-2 text-sm leading-6 text-ink-muted">
+              Elegí dos selecciones y el modelo calcula las probabilidades del
+              resultado con datos de partidos reales.
             </p>
           </div>
 
           {teamsError && (
-            <p className="mt-4 rounded-xl bg-[#FAEDEF] px-4 py-3 text-sm text-[#C95863]">
-              No se pudo conectar al backend. Verificá que esté corriendo en{" "}
-              <code className="font-mono">localhost:8000</code>.
+            <p className="mt-4 rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger">
+              No pudimos cargar las selecciones. Revisá tu conexión e intentá de
+              nuevo en unos segundos.
             </p>
           )}
 
@@ -189,7 +193,7 @@ export default function PredictorSection() {
           </div>
 
           {error && (
-            <p className="mt-4 rounded-xl bg-[#FAEDEF] px-4 py-3 text-sm text-[#C95863]">
+            <p className="mt-4 rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger">
               {error}
             </p>
           )}
