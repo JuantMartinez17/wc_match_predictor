@@ -7,6 +7,7 @@ import PredictionResult from "./prediction-result";
 import FlagImage from "./flag-image";
 import Modal from "./modal";
 import { useLanguage } from "@/lib/i18n";
+import { formatLocalTime, localTimeZoneName } from "@/lib/datetime";
 
 const STATUS_STYLE: Record<string, string> = {
   "en juego": "text-emerald-700 bg-emerald-50 dark:text-emerald-300/90 dark:bg-emerald-900/20",
@@ -41,6 +42,9 @@ function MatchCard({ match }: { match: FixtureMatch }) {
   const roundLabel = match.round
     ? (t.fixture.rounds[match.round.toLowerCase()] ?? match.round)
     : "";
+  const localTime = formatLocalTime(match.date, match.time_utc, t.meta.dateLocale);
+  const tzName = localTimeZoneName(match.date, t.meta.dateLocale);
+  const utcTooltip = match.time_utc ? `${match.time_utc} ${t.fixture.utcSuffix}` : "";
   const isFinished = match.status === "finalizado";
   const hasScore =
     match.score_a !== "" &&
@@ -76,8 +80,8 @@ function MatchCard({ match }: { match: FixtureMatch }) {
       >
         <div className="p-6">
           <div className="mb-4 flex items-center justify-between">
-            <span className="text-xs text-ink-subtle">
-              {match.time_utc} {t.fixture.utcSuffix}
+            <span className="text-xs text-ink-subtle" title={utcTooltip}>
+              {localTime && tzName ? `${localTime} ${tzName}` : localTime}
             </span>
             <span
               className={`flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyle}`}
@@ -149,7 +153,7 @@ function MatchCard({ match }: { match: FixtureMatch }) {
             <p className="mt-0.5 truncate text-xs capitalize text-ink-subtle">
               {[
                 formatDay(match.date, t.meta.dateLocale),
-                match.time_utc ? `${match.time_utc} ${t.fixture.utcSuffix}` : "",
+                localTime && tzName ? `${localTime} ${tzName}` : localTime,
                 roundLabel,
               ]
                 .filter(Boolean)
