@@ -66,9 +66,15 @@ app = FastAPI(
 _raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001")
 _CORS_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 
+# Optional regex for dynamic origins, e.g. Vercel preview deployments:
+# https://<project>-git-<branch>-<scope>.vercel.app
+# Set CORS_ORIGIN_REGEX in the backend host (Render) to your project's pattern.
+_CORS_ORIGIN_REGEX = os.getenv("CORS_ORIGIN_REGEX") or None
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_CORS_ORIGINS,
+    allow_origin_regex=_CORS_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
