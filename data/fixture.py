@@ -51,7 +51,6 @@ _STATUS_LABEL: dict[str, str] = {
     "STATUS_IN_PROGRESS": "en juego",
     "STATUS_HALFTIME": "descanso",
     "STATUS_FINAL": "finalizado",
-    "STATUS_FULL_TIME": "finalizado",
     "STATUS_POSTPONED": "postergado",
     "STATUS_CANCELED": "cancelado",
     "STATUS_SUSPENDED": "suspendido",
