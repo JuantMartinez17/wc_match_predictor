@@ -445,25 +445,6 @@ python predict.py "España" "Alemania" --model poisson_simple
 
 ---
 
-## Deploy
-
-### Backend en Render
-
-1. Crear un nuevo **Web Service** desde el repo
-2. **Build command:** `pip install -r backend/requirements.txt`
-3. **Start command:** `python -m uvicorn backend.api.main:app --host 0.0.0.0 --port $PORT`
-4. **Variable de entorno:** `CORS_ORIGINS=https://tu-frontend.vercel.app`
-
-El `Procfile` en la raíz ya tiene el start command configurado para Render/Heroku.
-
-### Frontend en Vercel
-
-1. Importar el repo en Vercel
-2. **Root directory:** `frontend`
-3. **Variable de entorno:** `NEXT_PUBLIC_API_URL=https://tu-backend.onrender.com`
-
----
-
 ## Decisiones de diseño
 
 - **Dixon-Coles como modelo principal**: admite dependencia negativa entre marcadores bajos (0-0, 1-0, 0-1, 1-1), más fiel a los datos reales de fútbol que Poisson simple.
