@@ -21,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`h-full antialiased ${archivo.variable}`}>
+    <html lang="es" className={`h-full antialiased ${archivo.variable}`} suppressHydrationWarning>
       <head>
         {/* Prevent dark-mode flash: set class before React hydrates */}
         <script
