@@ -1,24 +1,24 @@
 "use client";
 
-import { useState, useEffect, type ReactNode } from "react";
-import { LanguageContext, dictionaries, type Locale } from "@/lib/i18n";
+import { useSyncExternalStore, type ReactNode } from "react";
+import { LanguageContext, dictionaries } from "@/lib/i18n";
+import {
+  subscribeLocale,
+  getLocaleSnapshot,
+  getLocaleServerSnapshot,
+  setLocale,
+} from "@/lib/locale";
 
 export default function LanguageProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>("es");
-
-  useEffect(() => {
-    const stored = localStorage.getItem("locale") as Locale | null;
-    if (stored === "en" || stored === "es") setLocaleState(stored);
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem("locale", locale);
-    document.documentElement.setAttribute("lang", locale);
-  }, [locale]);
+  const locale = useSyncExternalStore(
+    subscribeLocale,
+    getLocaleSnapshot,
+    getLocaleServerSnapshot
+  );
 
   return (
     <LanguageContext.Provider
-      value={{ locale, setLocale: setLocaleState, t: dictionaries[locale] }}
+      value={{ locale, setLocale, t: dictionaries[locale] }}
     >
       {children}
     </LanguageContext.Provider>
