@@ -4,10 +4,9 @@ import { useState, useEffect } from "react";
 import { RotateCcw, Calendar } from "lucide-react";
 import type { Team, PredictResponse } from "@/types";
 import TeamPicker from "./team-picker";
+import ModelPicker, { type Model } from "./model-picker";
 import PredictionResult from "./prediction-result";
 import { fetchTeams, predictMatch } from "@/lib/api";
-
-type Model = "dixon_coles" | "bivariate_poisson" | "poisson_simple";
 
 export default function PredictorSection() {
   const [teams, setTeams] = useState<Team[]>([]);
@@ -66,18 +65,20 @@ export default function PredictorSection() {
   return (
     <section id="predictor" className="border-t border-[#E8E6E1] bg-white">
       <div className="mx-auto max-w-7xl px-6 py-20 md:px-12">
-        <div className="max-w-2xl">
+        <div className="mx-auto max-w-2xl">
           {/* Heading */}
-          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#A8A29E]">
-            Predictor
-          </p>
-          <h2 className="text-[1.75rem] font-semibold leading-tight text-[#1B1B1B]">
-            Predecí un partido
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-[#6B6B6B]">
-            Elegí dos selecciones. El modelo calcula las probabilidades en base
-            a datos históricos reales.
-          </p>
+          <div className="text-center">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#A8A29E]">
+              Predictor
+            </p>
+            <h2 className="text-[1.75rem] font-semibold leading-tight text-[#1B1B1B]">
+              Predecí un partido
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-[#6B6B6B]">
+              Elegí dos selecciones. El modelo calcula las probabilidades en
+              base a datos históricos reales.
+            </p>
+          </div>
 
           {teamsError && (
             <p className="mt-4 rounded-xl bg-[#FAEDEF] px-4 py-3 text-sm text-[#C95863]">
@@ -118,7 +119,7 @@ export default function PredictorSection() {
           </div>
 
           {/* Options row */}
-          <div className="mt-4 flex flex-wrap items-center gap-4">
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
             {/* Date picker */}
             <label className="flex items-center gap-2 rounded-[10px] border border-[#E8E6E1] bg-white px-3 py-1.5 text-sm text-[#1B1B1B] focus-within:ring-2 focus-within:ring-[#183A70] focus-within:ring-offset-2">
               <Calendar size={14} className="shrink-0 text-[#A8A29E]" />
@@ -152,15 +153,9 @@ export default function PredictorSection() {
             </label>
 
             {/* Model selector */}
-            <select
-              value={model}
-              onChange={(e) => setModel(e.target.value as Model)}
-              className="rounded-[10px] border border-[#E8E6E1] bg-white px-3 py-1.5 text-sm text-[#1B1B1B] outline-none focus-visible:ring-2 focus-visible:ring-[#183A70] focus-visible:ring-offset-2"
-            >
-              <option value="dixon_coles">Dixon-Coles</option>
-              <option value="bivariate_poisson">Poisson bivariado</option>
-              <option value="poisson_simple">Poisson simple</option>
-            </select>
+            <div className="w-full sm:w-auto">
+              <ModelPicker value={model} onChange={setModel} />
+            </div>
           </div>
 
           {/* Actions */}
@@ -169,7 +164,7 @@ export default function PredictorSection() {
               type="button"
               onClick={handlePredict}
               disabled={!teamA || !teamB || loading}
-              className="flex items-center gap-2 rounded-xl bg-[#183A70] px-7 py-3.5 text-[15px] font-semibold text-white transition-colors hover:bg-[#224989] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#183A70] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#183A70] px-7 py-3.5 text-[15px] font-semibold text-white transition-colors hover:bg-[#224989] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#183A70] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {loading ? (
                 <>
@@ -202,7 +197,7 @@ export default function PredictorSection() {
 
         {/* Result */}
         {result && (
-          <div id="predictor-result" className="mt-2 max-w-2xl scroll-mt-20">
+          <div id="predictor-result" className="mx-auto mt-2 max-w-2xl scroll-mt-20">
             <div className="rounded-2xl border border-[#E8E6E1] bg-white p-8">
               <PredictionResult result={result} />
             </div>
