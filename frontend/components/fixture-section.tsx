@@ -37,6 +37,18 @@ function formatDay(dateStr: string): string {
   });
 }
 
+/** Devuelve "Hoy" / "Mañana" si corresponde, si no null. */
+function relativeLabel(dateStr: string): string | null {
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0, 10);
+  const tomorrow = new Date(today.getTime() + 86400000)
+    .toISOString()
+    .slice(0, 10);
+  if (dateStr === todayStr) return "Hoy";
+  if (dateStr === tomorrow) return "Mañana";
+  return null;
+}
+
 // ── Match card ─────────────────────────────────────────────────────────────
 
 function MatchCard({ match }: { match: FixtureMatch }) {
@@ -44,6 +56,7 @@ function MatchCard({ match }: { match: FixtureMatch }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const isLive = match.status === "en juego";
   const statusStyle =
     STATUS_STYLE[match.status] ?? "text-[#6B6B6B] bg-[#F8F7F5]";
   const statusLabel = STATUS_LABEL[match.status] ?? match.status;
@@ -74,7 +87,11 @@ function MatchCard({ match }: { match: FixtureMatch }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-[#E8E6E1] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+    <div
+      className={`overflow-hidden rounded-2xl border bg-white shadow-[0_1px_3px_rgba(0,0,0,0.06)] ${
+        isLive ? "border-[#C95863] ring-1 ring-[#C95863]" : "border-[#E8E6E1]"
+      }`}
+    >
       <div className="p-6">
         {/* Meta row */}
         <div className="mb-4 flex items-center justify-between">
@@ -82,8 +99,11 @@ function MatchCard({ match }: { match: FixtureMatch }) {
             {match.time_utc} UTC
           </span>
           <span
-            className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyle}`}
+            className={`flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyle}`}
           >
+            {isLive && (
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-600" />
+            )}
             {statusLabel}
           </span>
         </div>
@@ -115,10 +135,10 @@ function MatchCard({ match }: { match: FixtureMatch }) {
           </div>
         </div>
 
-        {/* Round */}
-        {match.round && (
+        {/* Round + venue */}
+        {(match.round || match.venue) && (
           <p className="mt-3 text-center text-xs text-[#A8A29E]">
-            {match.round}
+            {[match.round, match.venue].filter(Boolean).join(" · ")}
           </p>
         )}
       </div>
@@ -223,7 +243,12 @@ export default function FixtureSection() {
         <div className="mt-10 space-y-10">
           {sortedDates.map((date) => (
             <div key={date}>
-              <h3 className="mb-4 text-sm font-semibold capitalize text-[#6B6B6B]">
+              <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold capitalize text-[#6B6B6B]">
+                {relativeLabel(date) && (
+                  <span className="rounded-full bg-[#EEF2F9] px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-[#183A70]">
+                    {relativeLabel(date)}
+                  </span>
+                )}
                 {formatDay(date)}
               </h3>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
