@@ -127,27 +127,37 @@
 }
 
 .dark {
-  /* WC2026 dark overrides */
-  --canvas: #13181f;
-  --surface: #1c2330;
-  --line: #2a3444;
-  --ink: #eae8e4;
-  --ink-muted: #8a9aae;
-  --ink-subtle: #536070;
-  --brand: #5b8de0;
-  --brand-hover: #6b9df0;
-  --brand-soft: #1a2a3e;
-  --gold: #d4a84c;
-  --gold-soft: #1e1608;
-  --danger: #e08686;
-  --danger-soft: #2a1010;
+  /* WC2026 dark palette
+     Inspired by editorial dark UIs: clear surface hierarchy, warm ink,
+     brand shifted to readable royal-blue, gold enhanced for dark backgrounds. */
+  --canvas: #0d1117;     /* page bg — deep, just warm enough */
+  --surface: #161b22;    /* cards / panels — clear lift from canvas */
+  --line: #30363d;       /* borders — crisp, not harsh */
+  --ink: #e6edf3;        /* primary text — warm off-white */
+  --ink-muted: #8b949e;  /* secondary text */
+  --ink-subtle: #6e7681; /* labels / captions */
+  --brand: #4a7bca;      /* royal blue — readable on dark, feels navy */
+  --brand-hover: #5a8bd8;
+  --brand-soft: #112040; /* dark navy tint — clearly blue-tinted vs surface */
+  --gold: #e3b341;       /* brighter amber — pops on dark */
+  --gold-soft: #231905;  /* dark amber tint — clearly warm vs cool surfaces */
+  --danger: #f47067;     /* coral-red — vivid on dark */
+  --danger-soft: #2d0f0e;
 
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
+  /* Align shadcn tokens with WC2026 dark palette */
+  --background: #0d1117;
+  --foreground: #e6edf3;
+  --card: #161b22;
+  --card-foreground: #e6edf3;
+  --popover: #161b22;
+  --popover-foreground: #e6edf3;
+
+  /* Override shadcn border/input tokens to match our line token */
+  --border: #30363d;
+  --input: #30363d;
+
+  /* Ring offset matches dark surface (no white gap on focus rings) */
+  --tw-ring-offset-color: #161b22;
   --primary: oklch(0.922 0 0);
   --primary-foreground: oklch(0.205 0 0);
   --secondary: oklch(0.269 0 0);
@@ -157,8 +167,6 @@
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
@@ -185,6 +193,10 @@
   html {
     @apply font-sans;
     scroll-behavior: smooth;
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
   }
 }
 
@@ -201,9 +213,19 @@
   );
 }
 
+/* Smooth theme transitions — only on non-motion-sensitive properties */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+}
+
 /* Modal nativo <dialog> — fade-in micro (DESIGN.md § Motion) */
 dialog::backdrop {
-  background: rgba(27, 27, 27, 0.45);
+  background: rgba(0, 0, 0, 0.5);
+}
+.dark dialog::backdrop {
+  background: rgba(0, 0, 0, 0.72);
 }
 dialog[open] {
   animation: modal-in 0.25s ease-out;
