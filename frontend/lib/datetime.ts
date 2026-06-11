@@ -38,3 +38,16 @@ export function localTimeZoneName(date: string, locale: string): string {
   }).formatToParts(d);
   return parts.find((p) => p.type === "timeZoneName")?.value ?? "";
 }
+
+/**
+ * "2026-06-14" — the viewer's local calendar date for a given kickoff.
+ * Falls back to the UTC date when time_utc is absent (so grouping stays stable).
+ */
+export function localDateString(date: string, timeUtc: string): string {
+  const d = matchKickoff(date, timeUtc);
+  if (!d || !timeUtc) return date;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
