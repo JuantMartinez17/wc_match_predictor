@@ -35,8 +35,6 @@ export default function Modal({
   }, [open]);
 
   // Scroll-lock del fondo mientras el modal está abierto.
-  // Compensa el ancho del scrollbar con padding-right para evitar el salto
-  // horizontal del contenido cuando la barra desaparece.
   useEffect(() => {
     if (!open) return;
     const scrollbar = window.innerWidth - document.documentElement.clientWidth;
@@ -50,13 +48,10 @@ export default function Modal({
     };
   }, [open]);
 
-  // Escape dispara 'cancel'; el botón de cierre dispara close() → 'close'.
-  // En ambos casos avisamos al padre para sincronizar el estado.
   function handleClose() {
     onClose();
   }
 
-  // Click en el backdrop = click cuyo target es el propio <dialog> (no su contenido).
   function handleClick(e: React.MouseEvent<HTMLDialogElement>) {
     if (e.target === ref.current) onClose();
   }
@@ -68,16 +63,16 @@ export default function Modal({
       onClose={handleClose}
       onClick={handleClick}
       aria-labelledby={labelledBy}
-      className="m-auto w-[min(92vw,42rem)] max-h-[90vh] overflow-hidden rounded-2xl border border-[#E8E6E1] bg-white p-0 shadow-xl backdrop:cursor-pointer"
+      className="m-auto w-[min(92vw,42rem)] max-h-[90vh] overflow-hidden rounded-2xl border border-line bg-surface p-0 shadow-xl backdrop:cursor-pointer"
     >
       {/* Encabezado sticky con botón de cierre */}
-      <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-[#E8E6E1] bg-white/95 px-6 py-4 backdrop-blur-sm">
+      <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-line bg-surface/95 px-6 py-4 backdrop-blur-sm">
         <div className="min-w-0">{header}</div>
         <button
           type="button"
           onClick={onClose}
           aria-label="Cerrar"
-          className="shrink-0 rounded-full p-1.5 text-[#6B6B6B] transition-colors hover:bg-[#F8F7F5] hover:text-[#1B1B1B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#183A70] focus-visible:ring-offset-2"
+          className="shrink-0 rounded-full p-1.5 text-ink-muted transition-colors hover:bg-canvas hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
         >
           <X size={18} />
         </button>

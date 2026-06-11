@@ -31,10 +31,10 @@ function diff(): Remaining {
 function Tile({ value, label }: { value: number; label: string }) {
   return (
     <div className="flex flex-col items-center">
-      <span className="font-mono text-2xl font-bold tabular-nums text-[#183A70] md:text-3xl">
+      <span className="font-mono text-2xl font-bold tabular-nums text-brand md:text-3xl">
         {String(value).padStart(2, "0")}
       </span>
-      <span className="mt-1 text-[0.625rem] font-semibold uppercase tracking-widest text-[#A8A29E]">
+      <span className="mt-1 text-[0.625rem] font-semibold uppercase tracking-widest text-ink-subtle">
         {label}
       </span>
     </div>
@@ -42,13 +42,10 @@ function Tile({ value, label }: { value: number; label: string }) {
 }
 
 export default function Countdown() {
-  // Render inicial neutro para evitar mismatch de hidratación; se completa en el cliente.
   const [time, setTime] = useState<Remaining | null>(null);
 
   useEffect(() => {
     const tick = () => setTime(diff());
-    // Primer cálculo en el próximo frame: evita setState sincrónico en el effect
-    // y el mismatch de hidratación (el server no conoce la hora del cliente).
     const raf = requestAnimationFrame(tick);
     const id = setInterval(tick, 1000);
     return () => {
@@ -59,9 +56,9 @@ export default function Countdown() {
 
   if (time?.started) {
     return (
-      <div className="flex items-center gap-2.5 rounded-full border border-[#E8E6E1] bg-white px-5 py-2.5 shadow-sm">
-        <span className="h-2 w-2 animate-pulse rounded-full bg-[#C95863]" />
-        <span className="text-sm font-semibold text-[#1B1B1B]">
+      <div className="flex items-center gap-2.5 rounded-full border border-line bg-surface px-5 py-2.5 shadow-sm">
+        <span className="h-2 w-2 animate-pulse rounded-full bg-danger" />
+        <span className="text-sm font-semibold text-ink">
           El Mundial ya está en marcha
         </span>
       </div>
@@ -69,17 +66,17 @@ export default function Countdown() {
   }
 
   return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl border border-[#E8E6E1] bg-white px-8 py-5 shadow-sm">
-      <span className="text-xs font-semibold uppercase tracking-widest text-[#6B6B6B]">
+    <div className="flex flex-col items-center gap-3 rounded-2xl border border-line bg-surface px-8 py-5 shadow-sm">
+      <span className="text-xs font-semibold uppercase tracking-widest text-ink-muted">
         El Mundial arranca en
       </span>
       <div className="flex items-start gap-5 md:gap-7">
         <Tile value={time?.days ?? 0} label="días" />
-        <span className="pt-1 text-2xl font-light text-[#E8E6E1] md:text-3xl">:</span>
+        <span className="pt-1 text-2xl font-light text-line md:text-3xl">:</span>
         <Tile value={time?.hours ?? 0} label="horas" />
-        <span className="pt-1 text-2xl font-light text-[#E8E6E1] md:text-3xl">:</span>
+        <span className="pt-1 text-2xl font-light text-line md:text-3xl">:</span>
         <Tile value={time?.minutes ?? 0} label="min" />
-        <span className="pt-1 text-2xl font-light text-[#E8E6E1] md:text-3xl">:</span>
+        <span className="pt-1 text-2xl font-light text-line md:text-3xl">:</span>
         <Tile value={time?.seconds ?? 0} label="seg" />
       </div>
     </div>

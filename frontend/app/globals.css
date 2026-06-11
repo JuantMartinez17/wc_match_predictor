@@ -127,6 +127,21 @@
 }
 
 .dark {
+  /* WC2026 dark overrides */
+  --canvas: #13181f;
+  --surface: #1c2330;
+  --line: #2a3444;
+  --ink: #eae8e4;
+  --ink-muted: #8a9aae;
+  --ink-subtle: #536070;
+  --brand: #5b8de0;
+  --brand-hover: #6b9df0;
+  --brand-soft: #1a2a3e;
+  --gold: #d4a84c;
+  --gold-soft: #1e1608;
+  --danger: #e08686;
+  --danger-soft: #2a1010;
+
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -169,6 +184,7 @@
   }
   html {
     @apply font-sans;
+    scroll-behavior: smooth;
   }
 }
 

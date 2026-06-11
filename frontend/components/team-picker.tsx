@@ -45,19 +45,19 @@ export default function TeamPicker({
         type="button"
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-3 rounded-[10px] border border-[#E8E6E1] bg-white px-4 py-3.5 text-left text-sm transition hover:border-[#183A70]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#183A70] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex w-full items-center gap-3 rounded-[10px] border border-line bg-surface px-4 py-3.5 text-left text-sm transition hover:border-brand/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {value ? (
           <>
             <FlagImage iso2={value.flag} name={value.name_es} size="xs" />
-            <span className="font-medium text-[#1B1B1B]">{value.name_es}</span>
+            <span className="font-medium text-ink">{value.name_es}</span>
           </>
         ) : (
-          <span className="text-[#A8A29E]">{placeholder}</span>
+          <span className="text-ink-subtle">{placeholder}</span>
         )}
         <ChevronDown
           size={14}
-          className={`ml-auto shrink-0 text-[#A8A29E] transition-transform duration-150 ${
+          className={`ml-auto shrink-0 text-ink-subtle transition-transform duration-150 ${
             open ? "rotate-180" : ""
           }`}
         />
@@ -65,22 +65,22 @@ export default function TeamPicker({
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-[10px] border border-[#E8E6E1] bg-white shadow-lg">
-          <div className="border-b border-[#E8E6E1] px-3 py-2.5">
+        <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-[10px] border border-line bg-surface shadow-lg">
+          <div className="border-b border-line px-3 py-2.5">
             <div className="flex items-center gap-2">
-              <Search size={13} className="shrink-0 text-[#A8A29E]" />
+              <Search size={13} className="shrink-0 text-ink-subtle" />
               <input
                 autoFocus
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Buscar..."
-                className="flex-1 bg-transparent text-sm outline-none placeholder:text-[#A8A29E]"
+                className="flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-ink-subtle"
               />
               {query && (
                 <button
                   type="button"
                   onClick={() => setQuery("")}
-                  className="text-[#A8A29E] hover:text-[#1B1B1B]"
+                  className="text-ink-subtle hover:text-ink"
                 >
                   <X size={13} />
                 </button>
@@ -90,7 +90,7 @@ export default function TeamPicker({
 
           <ul className="max-h-56 overflow-y-auto py-1">
             {filtered.length === 0 ? (
-              <li className="px-4 py-3 text-sm text-[#A8A29E]">
+              <li className="px-4 py-3 text-sm text-ink-subtle">
                 Sin resultados
               </li>
             ) : (
@@ -103,9 +103,9 @@ export default function TeamPicker({
                       setOpen(false);
                       setQuery("");
                     }}
-                    className={`flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-[#F8F7F5] ${
+                    className={`flex w-full items-center gap-3 px-4 py-2.5 text-sm text-ink transition-colors hover:bg-canvas ${
                       value?.id === team.id
-                        ? "bg-[#EEF2F9] font-medium"
+                        ? "bg-brand-soft font-medium"
                         : ""
                     }`}
                   >

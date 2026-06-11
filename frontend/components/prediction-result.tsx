@@ -25,7 +25,7 @@ function WinnerLegend({ teamA, teamB }: { teamA: string; teamB: string }) {
     [TEAM_B, teamB],
   ];
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#6B6B6B]">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-muted">
       {items.map(([color, label]) => (
         <span key={label} className="flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full" style={{ background: color }} />
@@ -52,7 +52,7 @@ function Scorelines({
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-[#A8A29E]">
+        <p className="text-xs font-semibold uppercase tracking-widest text-ink-subtle">
           Marcadores más probables
         </p>
         <WinnerLegend teamA={teamA} teamB={teamB} />
@@ -63,7 +63,7 @@ function Scorelines({
           return (
             <div
               key={i}
-              className={`flex flex-col items-center rounded-lg border border-[#E8E6E1] ${
+              className={`flex flex-col items-center rounded-lg border border-line ${
                 dense ? "px-1 py-2" : "px-2 py-3"
               }`}
               style={{ borderBottom: `2px solid ${color}` }}
@@ -74,7 +74,7 @@ function Scorelines({
               >
                 {s.score_a}–{s.score_b}
               </span>
-              <span className="mt-0.5 text-xs text-[#A8A29E]">
+              <span className="mt-0.5 text-xs text-ink-subtle">
                 {Math.round(s.probability * 100)}%
               </span>
             </div>
@@ -102,23 +102,23 @@ function FormationRow({
       <FlagImage iso2={flag} name={name} size="xs" />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="text-sm font-medium text-[#1B1B1B]">{name}</span>
+          <span className="text-sm font-medium text-ink">{name}</span>
           <span
             className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.6875rem] font-medium ${
               confirmed
-                ? "bg-[#EEF2F9] text-[#183A70]"
-                : "bg-[#F8F7F5] text-[#6B6B6B]"
+                ? "bg-brand-soft text-brand"
+                : "bg-canvas text-ink-muted"
             }`}
           >
             <span
               className={`h-1.5 w-1.5 rounded-full ${
-                confirmed ? "bg-[#183A70]" : "bg-[#A8A29E]"
+                confirmed ? "bg-brand" : "bg-ink-subtle"
               }`}
             />
             {confirmed ? "Formación confirmada" : "Formación por confirmar"}
           </span>
         </div>
-        {desc && <p className="mt-0.5 text-xs leading-5 text-[#6B6B6B]">{desc}</p>}
+        {desc && <p className="mt-0.5 text-xs leading-5 text-ink-muted">{desc}</p>}
       </div>
     </div>
   );
@@ -165,23 +165,22 @@ export default function PredictionResult({ result }: Props) {
 
   const isHome = !neutral && home_team_id != null;
 
-  // Contenido sin marco: el contenedor (card o modal) lo provee cada caller.
   return (
     <div className="space-y-6">
       {/* Teams header */}
       <div className="flex items-center gap-4">
         <div className="flex flex-1 flex-col items-center gap-2">
           <FlagImage iso2={flag_a} name={team_a_es} size="lg" className="shadow-sm" />
-          <span className="text-center text-lg font-semibold text-[#1B1B1B]">
+          <span className="text-center text-lg font-semibold text-ink">
             {team_a_es}
           </span>
         </div>
-        <span className="text-xs font-semibold uppercase tracking-widest text-[#A8A29E]">
+        <span className="text-xs font-semibold uppercase tracking-widest text-ink-subtle">
           vs
         </span>
         <div className="flex flex-1 flex-col items-center gap-2">
           <FlagImage iso2={flag_b} name={team_b_es} size="lg" className="shadow-sm" />
-          <span className="text-center text-lg font-semibold text-[#1B1B1B]">
+          <span className="text-center text-lg font-semibold text-ink">
             {team_b_es}
           </span>
         </div>
@@ -191,7 +190,7 @@ export default function PredictionResult({ result }: Props) {
       <div className="flex justify-center">
         <span
           className={`rounded-full px-3.5 py-1 text-xs font-medium ${
-            isHome ? "bg-[#EEF2F9] text-[#183A70]" : "bg-[#F8F7F5] text-[#6B6B6B]"
+            isHome ? "bg-brand-soft text-brand" : "bg-canvas text-ink-muted"
           }`}
         >
           {venue_label}
@@ -200,7 +199,7 @@ export default function PredictionResult({ result }: Props) {
 
       {/* Probability bars */}
       <div>
-        <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-[#A8A29E]">
+        <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-ink-subtle">
           Probabilidades a 90&apos;
         </p>
         <div className="space-y-4">
@@ -213,12 +212,12 @@ export default function PredictionResult({ result }: Props) {
           ).map(({ label, value, color }) => (
             <div key={label}>
               <div className="mb-1.5 flex justify-between text-sm">
-                <span className="font-medium text-[#1B1B1B]">{label}</span>
+                <span className="font-medium text-ink">{label}</span>
                 <span className="font-semibold" style={{ color }}>
                   {Math.round(value * 100)}%
                 </span>
               </div>
-              <div className="h-2.5 w-full overflow-hidden rounded-full bg-[#E8E6E1]">
+              <div className="h-2.5 w-full overflow-hidden rounded-full bg-line">
                 <div
                   className="h-2.5 rounded-full"
                   style={{
@@ -233,21 +232,21 @@ export default function PredictionResult({ result }: Props) {
       </div>
 
       {/* Expected goals */}
-      <div className="flex items-center justify-between rounded-xl bg-[#F8F7F5] px-8 py-5">
+      <div className="flex items-center justify-between rounded-xl bg-canvas px-8 py-5">
         <div className="text-center">
-          <p className="mb-1 text-xs uppercase tracking-widest text-[#A8A29E]">
+          <p className="mb-1 text-xs uppercase tracking-widest text-ink-subtle">
             xG {team_a_es}
           </p>
-          <p className="font-mono text-3xl font-bold text-[#1B1B1B]">
+          <p className="font-mono text-3xl font-bold text-ink">
             {xg_a.toFixed(1)}
           </p>
         </div>
-        <span className="text-2xl font-light text-[#E8E6E1]">—</span>
+        <span className="text-2xl font-light text-line">—</span>
         <div className="text-center">
-          <p className="mb-1 text-xs uppercase tracking-widest text-[#A8A29E]">
+          <p className="mb-1 text-xs uppercase tracking-widest text-ink-subtle">
             xG {team_b_es}
           </p>
-          <p className="font-mono text-3xl font-bold text-[#1B1B1B]">
+          <p className="font-mono text-3xl font-bold text-ink">
             {xg_b.toFixed(1)}
           </p>
         </div>
@@ -278,9 +277,9 @@ export default function PredictionResult({ result }: Props) {
             </div>
           </div>
           {p_penalties != null && (
-            <p className="text-center text-xs text-[#6B6B6B]">
+            <p className="text-center text-xs text-ink-muted">
               Probabilidad de definición por penales:{" "}
-              <span className="font-semibold text-[#1B1B1B]">
+              <span className="font-semibold text-ink">
                 {Math.round(p_penalties * 100)}%
               </span>
             </p>
@@ -289,16 +288,16 @@ export default function PredictionResult({ result }: Props) {
       )}
 
       {/* Narrative */}
-      <div className="rounded-xl bg-[#F8F7F5] px-5 py-4">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-[#A8A29E]">
+      <div className="rounded-xl bg-canvas px-5 py-4">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-ink-subtle">
           Análisis
         </p>
-        <p className="text-sm leading-7 text-[#6B6B6B]">{narrative}</p>
+        <p className="text-sm leading-7 text-ink-muted">{narrative}</p>
       </div>
 
       {/* Plantilla / formación */}
-      <div className="rounded-xl border border-[#E8E6E1] px-5 py-4">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-[#A8A29E]">
+      <div className="rounded-xl border border-line px-5 py-4">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-ink-subtle">
           Plantilla y formación
         </p>
         <div className="space-y-3">
@@ -323,7 +322,6 @@ export default function PredictionResult({ result }: Props) {
           Resultado más probable
         </p>
         <div className="mt-2 flex items-center gap-4">
-          {/* Ganador */}
           <div className="flex min-w-0 items-center gap-3">
             {winnerFlag && (
               <FlagImage iso2={winnerFlag} name={winnerName} size="md" className="shadow-sm" />
@@ -332,22 +330,21 @@ export default function PredictionResult({ result }: Props) {
               <p className="truncate text-2xl font-bold text-gold">
                 {winnerHeadline}
               </p>
-              <p className="mt-0.5 text-sm text-[#6B6B6B]">
+              <p className="mt-0.5 text-sm text-ink-muted">
                 {Math.round(winnerProb * 100)}% · confianza {confidence.toLowerCase()}
               </p>
             </div>
           </div>
 
-          {/* Marcador más probable */}
           {topScore && (
             <div className="ml-auto shrink-0 text-right">
               <p className="text-xs uppercase tracking-widest text-gold">
                 Marcador
               </p>
-              <p className="text-xl font-bold text-[#1B1B1B]">
+              <p className="text-xl font-bold text-ink">
                 {topScore.score_a}–{topScore.score_b}
               </p>
-              <p className="text-xs text-[#6B6B6B]">
+              <p className="text-xs text-ink-muted">
                 {Math.round(topScore.probability * 100)}%
               </p>
             </div>
