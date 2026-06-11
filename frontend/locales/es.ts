@@ -34,7 +34,7 @@ export const es: Translations = {
     heading: "Próximos partidos",
     rounds: {
       "group-stage": "Fase de grupos",
-      "round-of-32": "Ronda de 32",
+      "round-of-32": "Dieciseisavos de final",
       "round-of-16": "Octavos de final",
       "quarter-finals": "Cuartos de final",
       "semi-finals": "Semifinales",
