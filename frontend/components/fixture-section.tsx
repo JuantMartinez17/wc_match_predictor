@@ -7,6 +7,7 @@ import PredictionResult from "./prediction-result";
 import FlagImage from "./flag-image";
 import Modal from "./modal";
 import { useLanguage } from "@/lib/i18n";
+import { formatLocalTime, localTimeZoneName, localDateString } from "@/lib/datetime";
 
 const STATUS_STYLE: Record<string, string> = {
   "en juego": "text-emerald-700 bg-emerald-50 dark:text-emerald-300/90 dark:bg-emerald-900/20",
@@ -41,6 +42,9 @@ function MatchCard({ match }: { match: FixtureMatch }) {
   const roundLabel = match.round
     ? (t.fixture.rounds[match.round.toLowerCase()] ?? match.round)
     : "";
+  const localTime = formatLocalTime(match.date, match.time_utc, t.meta.dateLocale);
+  const tzName = localTimeZoneName(match.date, t.meta.dateLocale);
+  const utcTooltip = match.time_utc ? `${match.time_utc} ${t.fixture.utcSuffix}` : "";
   const isFinished = match.status === "finalizado";
   const hasScore =
     match.score_a !== "" &&
@@ -76,8 +80,8 @@ function MatchCard({ match }: { match: FixtureMatch }) {
       >
         <div className="p-6">
           <div className="mb-4 flex items-center justify-between">
-            <span className="text-xs text-ink-subtle">
-              {match.time_utc} {t.fixture.utcSuffix}
+            <span className="text-xs text-ink-subtle" title={utcTooltip}>
+              {localTime && tzName ? `${localTime} ${tzName}` : localTime}
             </span>
             <span
               className={`flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyle}`}
@@ -149,7 +153,7 @@ function MatchCard({ match }: { match: FixtureMatch }) {
             <p className="mt-0.5 truncate text-xs capitalize text-ink-subtle">
               {[
                 formatDay(match.date, t.meta.dateLocale),
-                match.time_utc ? `${match.time_utc} ${t.fixture.utcSuffix}` : "",
+                localTime && tzName ? `${localTime} ${tzName}` : localTime,
                 roundLabel,
               ]
                 .filter(Boolean)
@@ -212,18 +216,21 @@ export default function FixtureSection() {
   }, [daysAhead, t.fixture.errorLoad]);
 
   const grouped = matches.reduce<Record<string, FixtureMatch[]>>((acc, m) => {
-    if (!acc[m.date]) acc[m.date] = [];
-    acc[m.date].push(m);
+    const key = localDateString(m.date, m.time_utc);
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(m);
     return acc;
   }, {});
   const sortedDates = Object.keys(grouped).sort();
 
   function relativeLabel(dateStr: string): string | null {
-    const today = new Date();
-    const todayStr = today.toISOString().slice(0, 10);
-    const tomorrow = new Date(today.getTime() + 86400000).toISOString().slice(0, 10);
-    if (dateStr === todayStr) return t.fixture.today;
-    if (dateStr === tomorrow) return t.fixture.tomorrow;
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const todayLocal = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const tmrw = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const tomorrowLocal = `${tmrw.getFullYear()}-${pad(tmrw.getMonth() + 1)}-${pad(tmrw.getDate())}`;
+    if (dateStr === todayLocal) return t.fixture.today;
+    if (dateStr === tomorrowLocal) return t.fixture.tomorrow;
     return null;
   }
 
