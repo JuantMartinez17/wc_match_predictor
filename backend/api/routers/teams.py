@@ -14,10 +14,12 @@ from ..schemas import Team
 router = APIRouter()
 
 
-@router.get("/teams", response_model=list[Team], summary="Lista de equipos clasificados")
+@router.get(
+    "/teams", response_model=list[Team], summary="Lista de equipos clasificados"
+)
 async def get_teams() -> list[Team]:
-    from predict import TEAM_EN_TO_ES
     from data.ingest import WC2026_TEAMS
+    from predict import TEAM_EN_TO_ES
 
     return [
         Team(

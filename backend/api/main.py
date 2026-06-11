@@ -21,7 +21,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .routers import fixture, predict, teams
 
-
 # ---------------------------------------------------------------------------
 # Lifespan — carga del modelo al arrancar (una sola vez)
 # ---------------------------------------------------------------------------
@@ -34,10 +33,10 @@ async def lifespan(app: FastAPI):
     loop = asyncio.get_running_loop()
 
     def _load_predictor():
+        from config import DEFAULT_CONFIG
         from data.ingest import build_dataset
         from data.synthetic import generate_team_metadata
         from prediction.predictor import MatchPredictor
-        from config import DEFAULT_CONFIG
 
         matches = build_dataset(since_year=2018)
         metadata = generate_team_metadata(seed=11)

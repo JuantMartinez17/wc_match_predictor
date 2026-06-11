@@ -24,6 +24,7 @@ router = APIRouter()
 # Narrativa en lenguaje simple
 # ---------------------------------------------------------------------------
 
+
 def _build_narrative(
     team_a: str,
     team_b: str,
@@ -48,9 +49,13 @@ def _build_narrative(
     elif p_b >= 0.62:
         partes.append(f"{nombre_b} llega como gran favorito ante {nombre_a}.")
     elif p_a >= 0.50:
-        partes.append(f"{nombre_a} tiene una leve ventaja, pero el partido está abierto.")
+        partes.append(
+            f"{nombre_a} tiene una leve ventaja, pero el partido está abierto."
+        )
     elif p_b >= 0.50:
-        partes.append(f"{nombre_b} tiene una leve ventaja, pero el partido está abierto.")
+        partes.append(
+            f"{nombre_b} tiene una leve ventaja, pero el partido está abierto."
+        )
     else:
         partes.append(f"Partido muy parejo entre {nombre_a} y {nombre_b}.")
 
@@ -69,15 +74,15 @@ def _build_narrative(
         ga, gb, p_top = top_scorelines[0]
         if ga == gb:
             partes.append(
-                f"El resultado más probable es un empate {ga}-{gb} ({p_top*100:.0f}% de chances)."
+                f"El resultado más probable es un empate {ga}-{gb} ({p_top * 100:.0f}% de chances)."
             )
         elif ga > gb:
             partes.append(
-                f"El marcador más probable es {ga}-{gb} a favor de {nombre_a} ({p_top*100:.0f}% de chances)."
+                f"El marcador más probable es {ga}-{gb} a favor de {nombre_a} ({p_top * 100:.0f}% de chances)."
             )
         else:
             partes.append(
-                f"El marcador más probable es {gb}-{ga} a favor de {nombre_b} ({p_top*100:.0f}% de chances)."
+                f"El marcador más probable es {gb}-{ga} a favor de {nombre_b} ({p_top * 100:.0f}% de chances)."
             )
 
     if trend_a > 50 and trend_b <= 10:
@@ -98,7 +103,12 @@ def _build_narrative(
 # Endpoint
 # ---------------------------------------------------------------------------
 
-@router.post("/predict", response_model=PredictResponse, summary="Predecir resultado de un partido")
+
+@router.post(
+    "/predict",
+    response_model=PredictResponse,
+    summary="Predecir resultado de un partido",
+)
 async def predict_match(req: PredictRequest, request: Request) -> PredictResponse:
     predictor = request.app.state.predictor
     executor = request.app.state.executor
@@ -119,12 +129,14 @@ async def predict_match(req: PredictRequest, request: Request) -> PredictRespons
             detail=f"ID de equipo inválido: '{req.team_b_id}'. Consultá /api/teams para ver los IDs válidos.",
         )
     if team_a == team_b:
-        raise HTTPException(status_code=422, detail="Los dos equipos deben ser distintos.")
+        raise HTTPException(
+            status_code=422, detail="Los dos equipos deben ser distintos."
+        )
 
     ref_date = req.date or str(date.today())
 
     # Venue
-    from predict import detect_venue, _resolve_xi_value, TEAM_EN_TO_ES
+    from predict import TEAM_EN_TO_ES, _resolve_xi_value, detect_venue
 
     neutral, home_team = detect_venue(team_a, team_b)
     home_team_id = team_id(home_team) if home_team else None
@@ -136,7 +148,8 @@ async def predict_match(req: PredictRequest, request: Request) -> PredictRespons
 
     # Fetch squad values + lineup en thread pool
     def _squads_and_lineup():
-        from predict import _fetch_squad_values, _fetch_lineup
+        from predict import _fetch_lineup, _fetch_squad_values
+
         sq_a = _fetch_squad_values(team_a)
         sq_b = _fetch_squad_values(team_b)
         lineup = _fetch_lineup(team_a, team_b, ref_date)
@@ -157,14 +170,24 @@ async def predict_match(req: PredictRequest, request: Request) -> PredictRespons
     def _run_predict():
         if req.knockout:
             return predictor.predict_knockout(
-                team_a, team_b, ref_date,
-                neutral=neutral, home_team=home_team, model=req.model,
-                squad_value_a=xi_val_a, squad_value_b=xi_val_b,
+                team_a,
+                team_b,
+                ref_date,
+                neutral=neutral,
+                home_team=home_team,
+                model=req.model,
+                squad_value_a=xi_val_a,
+                squad_value_b=xi_val_b,
             )
         return predictor.predict(
-            team_a, team_b, ref_date,
-            neutral=neutral, home_team=home_team, model=req.model,
-            squad_value_a=xi_val_a, squad_value_b=xi_val_b,
+            team_a,
+            team_b,
+            ref_date,
+            neutral=neutral,
+            home_team=home_team,
+            model=req.model,
+            squad_value_a=xi_val_a,
+            squad_value_b=xi_val_b,
         )
 
     result = await loop.run_in_executor(executor, _run_predict)
@@ -189,8 +212,17 @@ async def predict_match(req: PredictRequest, request: Request) -> PredictRespons
     trend_b = float(explanation.get("trend_b", 0))
 
     narrative = _build_narrative(
-        team_a, team_b, p_a, p_draw, p_b,
-        xg_a, xg_b, scorelines, trend_a, trend_b, venue_label,
+        team_a,
+        team_b,
+        p_a,
+        p_draw,
+        p_b,
+        xg_a,
+        xg_b,
+        scorelines,
+        trend_a,
+        trend_b,
+        venue_label,
     )
 
     top_sc = [

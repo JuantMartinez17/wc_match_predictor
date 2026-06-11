@@ -28,14 +28,18 @@ import unicodedata
 
 from data.ingest import WC2026_TEAMS
 
-
 # ---------------------------------------------------------------------------
 # Generación de IDs
 # ---------------------------------------------------------------------------
 
+
 def _slug(canonical: str) -> str:
     """Convierte un nombre canónico en un slug ASCII único y URL-safe."""
-    s = unicodedata.normalize("NFKD", canonical).encode("ascii", "ignore").decode("ascii")
+    s = (
+        unicodedata.normalize("NFKD", canonical)
+        .encode("ascii", "ignore")
+        .decode("ascii")
+    )
     s = re.sub(r"['\"]", "", s).lower()
     s = re.sub(r"[^a-z0-9]+", "-", s).strip("-")
     return s
@@ -64,59 +68,59 @@ def canonical_from_id(tid: str) -> str | None:
 
 _FLAG_ISO2: dict[str, str] = {
     # CONMEBOL
-    "Argentina":            "ar",
-    "Brazil":               "br",
-    "Colombia":             "co",
-    "Ecuador":              "ec",
-    "Paraguay":             "py",
-    "Uruguay":              "uy",
+    "Argentina": "ar",
+    "Brazil": "br",
+    "Colombia": "co",
+    "Ecuador": "ec",
+    "Paraguay": "py",
+    "Uruguay": "uy",
     # UEFA
-    "Austria":              "at",
-    "Belgium":              "be",
+    "Austria": "at",
+    "Belgium": "be",
     "Bosnia and Herzegovina": "ba",
-    "Croatia":              "hr",
-    "Czechia":              "cz",
-    "England":              "gb-eng",
-    "France":               "fr",
-    "Germany":              "de",
-    "Netherlands":          "nl",
-    "Norway":               "no",
-    "Portugal":             "pt",
-    "Scotland":             "gb-sct",
-    "Spain":                "es",
-    "Sweden":               "se",
-    "Switzerland":          "ch",
-    "Turkey":               "tr",
+    "Croatia": "hr",
+    "Czechia": "cz",
+    "England": "gb-eng",
+    "France": "fr",
+    "Germany": "de",
+    "Netherlands": "nl",
+    "Norway": "no",
+    "Portugal": "pt",
+    "Scotland": "gb-sct",
+    "Spain": "es",
+    "Sweden": "se",
+    "Switzerland": "ch",
+    "Turkey": "tr",
     # CAF
-    "Algeria":              "dz",
-    "Cabo Verde":           "cv",
-    "Congo DR":             "cd",
-    "Côte d'Ivoire":        "ci",
-    "Egypt":                "eg",
-    "Ghana":                "gh",
-    "Morocco":              "ma",
-    "Senegal":              "sn",
-    "South Africa":         "za",
-    "Tunisia":              "tn",
+    "Algeria": "dz",
+    "Cabo Verde": "cv",
+    "Congo DR": "cd",
+    "Côte d'Ivoire": "ci",
+    "Egypt": "eg",
+    "Ghana": "gh",
+    "Morocco": "ma",
+    "Senegal": "sn",
+    "South Africa": "za",
+    "Tunisia": "tn",
     # AFC
-    "Australia":            "au",
-    "Iran":                 "ir",
-    "Iraq":                 "iq",
-    "Japan":                "jp",
-    "Jordan":               "jo",
-    "Korea Republic":       "kr",
-    "Qatar":                "qa",
-    "Saudi Arabia":         "sa",
-    "Uzbekistan":           "uz",
+    "Australia": "au",
+    "Iran": "ir",
+    "Iraq": "iq",
+    "Japan": "jp",
+    "Jordan": "jo",
+    "Korea Republic": "kr",
+    "Qatar": "qa",
+    "Saudi Arabia": "sa",
+    "Uzbekistan": "uz",
     # CONCACAF
-    "Canada":               "ca",
-    "Curaçao":              "cw",
-    "Haiti":                "ht",
-    "Mexico":               "mx",
-    "Panama":               "pa",
-    "USA":                  "us",
+    "Canada": "ca",
+    "Curaçao": "cw",
+    "Haiti": "ht",
+    "Mexico": "mx",
+    "Panama": "pa",
+    "USA": "us",
     # OFC
-    "New Zealand":          "nz",
+    "New Zealand": "nz",
 }
 
 

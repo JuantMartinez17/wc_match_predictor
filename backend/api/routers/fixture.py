@@ -16,14 +16,18 @@ from ..schemas import FixtureMatch
 router = APIRouter()
 
 
-@router.get("/fixture", response_model=list[FixtureMatch], summary="Fixture del Mundial 2026")
+@router.get(
+    "/fixture", response_model=list[FixtureMatch], summary="Fixture del Mundial 2026"
+)
 async def get_fixture(
     request: Request,
     days_ahead: int = Query(default=10, ge=1, le=30, description="Días hacia adelante"),
-    include_past: int = Query(default=1, ge=0, le=7, description="Días pasados a incluir"),
+    include_past: int = Query(
+        default=1, ge=0, le=7, description="Días pasados a incluir"
+    ),
 ) -> list[FixtureMatch]:
-    from predict import TEAM_EN_TO_ES
     from data.fixture import get_fixture as _get_fixture
+    from predict import TEAM_EN_TO_ES
 
     loop = asyncio.get_running_loop()
     executor = request.app.state.executor
