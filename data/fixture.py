@@ -110,7 +110,7 @@ def _parse_events(data: dict) -> list[dict]:
         # Extraer solo la parte de la fecha para agrupar
         if "T" in event_date_str:
             date_part, time_part = event_date_str.split("T")
-            time_part = time_part.replace("Z", "").replace(":00", "", 1)[:5]
+            time_part = time_part.replace("Z", "")[:5]
         else:
             date_part = event_date_str
             time_part = ""
