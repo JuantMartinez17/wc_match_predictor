@@ -37,6 +37,7 @@ class StrengthModel:
         self.cfg = cfg
         self.elo_cfg = elo_cfg
         self._result = None
+        self._params: dict[str, float] = {}
         self._teams: set[str] = set()
         self._fallback = False  # True si el GLM no pudo ajustarse
 
@@ -70,8 +71,10 @@ class StrengthModel:
                 self._result = model.fit(maxiter=200)
             if not np.isfinite(self._result.llf):
                 raise ValueError("Log-verosimilitud no finita.")
+            self._params = self._result.params.to_dict()
         except Exception:  # noqa: BLE001 -> degradación elegante
             self._result = None
+            self._params = {}
             self._fallback = True
         return self
 
@@ -103,9 +106,18 @@ class StrengthModel:
         """Lambda según el GLM, o None si el equipo no está en el ajuste."""
         if self._result is None or attack not in self._teams or defense not in self._teams:
             return None
-        row = pd.DataFrame({"attack": [attack], "defense": [defense], "is_home": [is_home]})
+        # Predicción directa desde los coeficientes (codificación treatment):
+        # evita el costo de patsy de `result.predict` por llamada. El .get(...,
+        # 0.0) cubre la categoría de referencia, igual que en `team_ratings`.
         try:
-            return float(self._result.predict(row).iloc[0])
+            p = self._params
+            eta = (
+                p.get("Intercept", 0.0)
+                + p.get(f"C(attack)[T.{attack}]", 0.0)
+                + p.get(f"C(defense)[T.{defense}]", 0.0)
+                + p.get("is_home", 0.0) * is_home
+            )
+            return float(np.exp(eta))
         except Exception:  # noqa: BLE001
             return None
 

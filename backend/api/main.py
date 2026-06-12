@@ -25,7 +25,9 @@ from .routers import accuracy, fixture, predict, teams
 # Lifespan — carga del modelo al arrancar (una sola vez)
 # ---------------------------------------------------------------------------
 
-_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="predictor")
+# 8 workers: cada request de predicción ocupa hasta 3 transitoriamente (fetches
+# externos en paralelo) y el backtest de accuracy ocupa uno al arrancar.
+_executor = ThreadPoolExecutor(max_workers=8, thread_name_prefix="predictor")
 
 
 @asynccontextmanager
@@ -49,6 +51,16 @@ async def lifespan(app: FastAPI):
     app.state.predictor = predictor
     app.state.executor = _executor
     app.state.accuracy_metrics = None  # se llenará al terminar el backtest
+
+    # Pre-calienta el caché de ventana (fit del GLM) para hoy y mañana, así el
+    # primer request no paga el ajuste. Fire-and-forget.
+    def _warm_windows():
+        from datetime import date, timedelta
+
+        for d in (date.today(), date.today() + timedelta(days=1)):
+            predictor.warm_window(str(d))
+
+    loop.run_in_executor(_executor, _warm_windows)
 
     # Backtest de accuracy en background — no bloquea al predictor principal
     async def _bg_accuracy() -> None:
@@ -111,7 +123,7 @@ _TAGS_METADATA = [
             "Motor de predicción probabilística. Devuelve probabilidades 1X2 calibradas, "
             "goles esperados, los 8 marcadores más probables y una narrativa en español. "
             "El motor integra Elo, GLM de fuerza ofensiva/defensiva, modelo de marcador "
-            "(Dixon-Coles por defecto) y simulación Monte Carlo de 100 000 iteraciones. "
+            "(Dixon-Coles por defecto) y cálculo exacto de probabilidades sobre la matriz de marcadores. "
             "Cuando el lineup está confirmado (≈1 h antes del partido), incorpora el valor "
             "real del XI y penaliza ausencias de titulares clave."
         ),

@@ -10,6 +10,9 @@ La resolución canónica es un lookup O(1) sin fuzzy matching.
 from __future__ import annotations
 
 import asyncio
+import threading
+import time
+from collections import OrderedDict
 from datetime import date
 
 from fastapi import APIRouter, HTTPException, Request
@@ -18,6 +21,38 @@ from ..constants import CANONICAL_BY_ID, flag, team_id
 from ..schemas import PredictRequest, PredictResponse, ScoreProbability
 
 router = APIRouter()
+
+
+# ---------------------------------------------------------------------------
+# Caché de respuestas (TTL corto: debe captar la confirmación del lineup,
+# que aparece ~1 h antes del pitido y cambia la predicción)
+# ---------------------------------------------------------------------------
+
+_RESPONSE_CACHE: OrderedDict[tuple, tuple[float, PredictResponse]] = OrderedDict()
+_RESPONSE_TTL = 120.0  # segundos
+_RESPONSE_MAX = 256
+_response_lock = threading.Lock()
+
+
+def _cache_get(key: tuple) -> PredictResponse | None:
+    with _response_lock:
+        entry = _RESPONSE_CACHE.get(key)
+        if entry is None:
+            return None
+        expires, resp = entry
+        if time.monotonic() >= expires:
+            del _RESPONSE_CACHE[key]
+            return None
+        _RESPONSE_CACHE.move_to_end(key)
+        return resp
+
+
+def _cache_put(key: tuple, resp: PredictResponse) -> None:
+    with _response_lock:
+        _RESPONSE_CACHE[key] = (time.monotonic() + _RESPONSE_TTL, resp)
+        _RESPONSE_CACHE.move_to_end(key)
+        while len(_RESPONSE_CACHE) > _RESPONSE_MAX:
+            _RESPONSE_CACHE.popitem(last=False)
 
 
 # ---------------------------------------------------------------------------
@@ -158,7 +193,8 @@ async def predict_match(req: PredictRequest, request: Request) -> PredictRespons
     1. **Elo** — rating histórico de cada selección con decay temporal.
     2. **GLM de fuerza** — ataque/defensa ajustados por rival con shrinkage hacia prior Elo.
     3. **Modelo de marcador** — Dixon-Coles (por defecto), Poisson Bivariado o Poisson Simple.
-    4. **Monte Carlo** — 100 000 simulaciones del marcador → probabilidades 1X2 calibradas.
+    4. **Probabilidades exactas** — cálculo determinista sobre la matriz conjunta
+       de marcadores → probabilidades 1X2 calibradas.
     5. **Ajustes secundarios** — valor del XI (Transfermarkt), disponibilidad de jugadores
        (penaliza ausencias de titulares clave cuando el lineup está confirmado),
        historial directo y factor entrenador.
@@ -198,6 +234,12 @@ async def predict_match(req: PredictRequest, request: Request) -> PredictRespons
 
     ref_date = req.date or str(date.today())
 
+    # Caché de respuestas: requests idénticos dentro del TTL responden directo.
+    cache_key = (req.team_a_id, req.team_b_id, ref_date, req.model, req.knockout)
+    cached_resp = _cache_get(cache_key)
+    if cached_resp is not None:
+        return cached_resp
+
     # Venue
     from predict import TEAM_EN_TO_ES, _resolve_xi_value, detect_venue
 
@@ -209,16 +251,15 @@ async def predict_match(req: PredictRequest, request: Request) -> PredictRespons
         else "Cancha neutral"
     )
 
-    # Fetch squad values + lineup en thread pool
-    def _squads_and_lineup():
-        from predict import _fetch_lineup, _fetch_squad_values
+    # Fetch squad values + lineup en thread pool, EN PARALELO: la latencia
+    # pasa de la suma de las tres llamadas externas al máximo de ellas.
+    from predict import _fetch_lineup, _fetch_squad_values
 
-        sq_a = _fetch_squad_values(team_a)
-        sq_b = _fetch_squad_values(team_b)
-        lineup = _fetch_lineup(team_a, team_b, ref_date)
-        return sq_a, sq_b, lineup
-
-    squad_a, squad_b, lineup = await loop.run_in_executor(executor, _squads_and_lineup)
+    squad_a, squad_b, lineup = await asyncio.gather(
+        loop.run_in_executor(executor, _fetch_squad_values, team_a),
+        loop.run_in_executor(executor, _fetch_squad_values, team_b),
+        loop.run_in_executor(executor, _fetch_lineup, team_a, team_b, ref_date),
+    )
 
     lineup_a = lineup["team_a"] if lineup else None
     lineup_b = lineup["team_b"] if lineup else None
@@ -260,12 +301,15 @@ async def predict_match(req: PredictRequest, request: Request) -> PredictRespons
             squad_value_b=xi_val_b,
             absences_a=absences_a,
             absences_b=absences_b,
+            # Cálculo exacto sobre la matriz de marcadores: determinista y sin
+            # el costo (~100-200 ms) ni el ruido de muestreo del Monte Carlo.
+            use_simulation=False,
         )
 
     result = await loop.run_in_executor(executor, _run_predict)
 
     if req.knockout:
-        pred = result["regulation"]
+        pred = result["prediction"]
         p_penalties = float(result.get("p_penalties", 0))
         p_advance_a = float(result.get("p_advance_a", 0))
         p_advance_b = float(result.get("p_advance_b", 0))
@@ -302,7 +346,7 @@ async def predict_match(req: PredictRequest, request: Request) -> PredictRespons
         for ga, gb, p in scorelines[:8]
     ]
 
-    return PredictResponse(
+    response = PredictResponse(
         team_a_id=req.team_a_id,
         team_b_id=req.team_b_id,
         team_a=team_a,
@@ -330,3 +374,5 @@ async def predict_match(req: PredictRequest, request: Request) -> PredictRespons
         p_advance_a=p_advance_a,
         p_advance_b=p_advance_b,
     )
+    _cache_put(cache_key, response)
+    return response
