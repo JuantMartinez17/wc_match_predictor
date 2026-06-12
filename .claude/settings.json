@@ -16,7 +16,19 @@
       "PowerShell(python -c \"import fastapi; import uvicorn; print\\('fastapi:', fastapi.__version__, '| uvicorn:', uvicorn.__version__\\)\")",
       "PowerShell(New-Item -ItemType Directory -Force -Path \"c:\\\\Users\\\\juant\\\\Documents\\\\wc_match_predictor\\\\frontend\\\\types\")",
       "PowerShell(New-Item -ItemType Directory -Force -Path \"c:\\\\Users\\\\juant\\\\Documents\\\\wc_match_predictor\\\\frontend\\\\hooks\")",
-      "PowerShell(cd \"c:\\\\Users\\\\juant\\\\Documents\\\\wc_match_predictor\"; $env:PYTHONIOENCODING=\"utf-8\"; python predict.py \"argentina\" \"brasil\" --date 2026-06-20 2>&1 | Select-Object -First 20)"
+      "PowerShell(cd \"c:\\\\Users\\\\juant\\\\Documents\\\\wc_match_predictor\"; $env:PYTHONIOENCODING=\"utf-8\"; python predict.py \"argentina\" \"brasil\" --date 2026-06-20 2>&1 | Select-Object -First 20)",
+      "Bash(python -c ' *)",
+      "Bash(ls *.md)",
+      "Bash(dir *.md /b)",
+      "Bash(gh pr *)",
+      "Bash(ls .github/)",
+      "Bash(dir .github /b)",
+      "Bash(pip install *)",
+      "Bash(ruff check *)",
+      "Bash(ruff format *)",
+      "PowerShell(cd \"c:\\\\Users\\\\Juan Tomás Martínez\\\\Documents\\\\wc_match_predictor\"; python -m pip install ruff -q 2>&1 | Select-Object -Last 3; python -m ruff check backend/ 2>&1; Write-Host \"EXIT: $LASTEXITCODE\")",
+      "PowerShell(cd \"c:\\\\Users\\\\Juan Tomás Martínez\\\\Documents\\\\wc_match_predictor\"; python -m ruff format --check backend/ 2>&1; Write-Host \"EXIT: $LASTEXITCODE\")",
+      "PowerShell(cd \"c:\\\\Users\\\\Juan Tomás Martínez\\\\Documents\\\\wc_match_predictor\"; python -m ruff format backend/api/routers/accuracy.py backend/api/schemas.py; Write-Host \"EXIT: $LASTEXITCODE\")"
     ]
   }
 }

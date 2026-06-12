@@ -17,15 +17,41 @@ router = APIRouter()
 
 
 @router.get(
-    "/fixture", response_model=list[FixtureMatch], summary="Fixture del Mundial 2026"
+    "/fixture",
+    response_model=list[FixtureMatch],
+    summary="Fixture oficial del Mundial 2026",
+    response_description=(
+        "Partidos en la ventana [hoy − include_past días, hoy + days_ahead días], "
+        "ordenados por fecha y hora UTC."
+    ),
 )
 async def get_fixture(
     request: Request,
-    days_ahead: int = Query(default=10, ge=1, le=30, description="Días hacia adelante"),
+    days_ahead: int = Query(
+        default=10,
+        ge=1,
+        le=30,
+        description="Días hacia adelante desde hoy a incluir en el fixture.",
+        examples=[10],
+    ),
     include_past: int = Query(
-        default=1, ge=0, le=7, description="Días pasados a incluir"
+        default=1,
+        ge=0,
+        le=7,
+        description="Días pasados a incluir (útil para ver resultados recientes).",
+        examples=[1],
     ),
 ) -> list[FixtureMatch]:
+    """
+    Fixture oficial del Mundial 2026 vía ESPN API pública.
+
+    Devuelve los partidos en la ventana temporal especificada. Los campos
+    `team_a_id` y `team_b_id` de cada partido son IDs numéricos que se pueden
+    pasar **directamente** a `POST /api/predict` sin ninguna transformación.
+
+    **Caché:** 30 minutos. Si ESPN no está disponible, devuelve la última
+    versión cacheada. Los partidos finalizados incluyen `score_a` y `score_b`.
+    """
     from data.fixture import get_fixture as _get_fixture
     from predict import TEAM_EN_TO_ES
 

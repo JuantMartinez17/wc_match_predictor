@@ -54,6 +54,7 @@ _STATUS_LABEL: dict[str, str] = {
     "STATUS_POSTPONED": "postergado",
     "STATUS_CANCELED": "cancelado",
     "STATUS_SUSPENDED": "suspendido",
+    "STATUS_FULL_TIME": "finalizado"
 }
 
 

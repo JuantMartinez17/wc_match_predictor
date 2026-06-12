@@ -319,6 +319,21 @@ def _fetch_lineup(team_a: str, team_b: str, ref_date: str) -> dict | None:
         return None
 
 
+def _derive_absences(
+    lineup_names: list[str] | None,
+    squad_values: dict[str, float],
+):
+    """Devuelve el DataFrame de ausencias, o None si no hay datos suficientes."""
+    if not lineup_names or not squad_values:
+        return None
+    try:
+        from data.players import derive_absences
+        df = derive_absences(lineup_names, squad_values)
+        return df if len(df) > 0 else None
+    except Exception:
+        return None
+
+
 def _resolve_xi_value(
     team: str,
     lineup_names: list[str] | None,
@@ -405,12 +420,16 @@ def run_prediction(cfg: dict) -> None:
     xi_val_a, xi_desc_a = _resolve_xi_value(team_a, lineup_a, squad_a_vals)
     xi_val_b, xi_desc_b = _resolve_xi_value(team_b, lineup_b, squad_b_vals)
 
+    absences_a = _derive_absences(lineup_a, squad_a_vals)
+    absences_b = _derive_absences(lineup_b, squad_b_vals)
+
     print()
     if cfg.get("knockout"):
         ko = predictor.predict_knockout(
             team_a, team_b, ref_date,
             neutral=neutral, home_team=home_team, model=model,
             squad_value_a=xi_val_a, squad_value_b=xi_val_b,
+            absences_a=absences_a, absences_b=absences_b,
         )
         r = ko["regulation"]
         print(f"ELIMINATORIA — {nombre_a} vs {nombre_b}  [{ref_date}]  |  {venue_label}")
@@ -425,6 +444,7 @@ def run_prediction(cfg: dict) -> None:
             team_a, team_b, ref_date,
             neutral=neutral, home_team=home_team, model=model,
             squad_value_a=xi_val_a, squad_value_b=xi_val_b,
+            absences_a=absences_a, absences_b=absences_b,
         )
         print(f"[{venue_label}]")
         print(f"[Plantilla {nombre_a}: {xi_desc_a}]")
