@@ -28,7 +28,18 @@
       "Bash(ruff format *)",
       "PowerShell(cd \"c:\\\\Users\\\\Juan Tomás Martínez\\\\Documents\\\\wc_match_predictor\"; python -m pip install ruff -q 2>&1 | Select-Object -Last 3; python -m ruff check backend/ 2>&1; Write-Host \"EXIT: $LASTEXITCODE\")",
       "PowerShell(cd \"c:\\\\Users\\\\Juan Tomás Martínez\\\\Documents\\\\wc_match_predictor\"; python -m ruff format --check backend/ 2>&1; Write-Host \"EXIT: $LASTEXITCODE\")",
-      "PowerShell(cd \"c:\\\\Users\\\\Juan Tomás Martínez\\\\Documents\\\\wc_match_predictor\"; python -m ruff format backend/api/routers/accuracy.py backend/api/schemas.py; Write-Host \"EXIT: $LASTEXITCODE\")"
+      "PowerShell(cd \"c:\\\\Users\\\\Juan Tomás Martínez\\\\Documents\\\\wc_match_predictor\"; python -m ruff format backend/api/routers/accuracy.py backend/api/schemas.py; Write-Host \"EXIT: $LASTEXITCODE\")",
+      "Bash(git log *)",
+      "Bash(git push *)",
+      "Bash(curl -s -X POST -H 'Authorization: token __CMDSUB_OUTPUT__')",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "WebFetch(domain:wc-match-predictor.onrender.com)",
+      "WebFetch(domain:api.sofascore.com)",
+      "PowerShell(cd \"c:\\\\Users\\\\Juan Tomás Martínez\\\\Documents\\\\wc_match_predictor\"; python -m ruff check data/players.py data/lineups.py; python -m ruff format --check data/players.py data/lineups.py; Write-Host \"EXIT $LASTEXITCODE\")",
+      "PowerShell(cd \"c:\\\\Users\\\\Juan Tomás Martínez\\\\Documents\\\\wc_match_predictor\"; python -m ruff check data/players.py data/lineups.py; python -m ruff format data/players.py data/lineups.py; python -m ruff format --check data/players.py data/lineups.py; Write-Host \"EXIT $LASTEXITCODE\")",
+      "PowerShell(cd \"c:\\\\Users\\\\Juan Tomás Martínez\\\\Documents\\\\wc_match_predictor\"; python -m ruff check --fix data/players.py data/lineups.py; python -m ruff check data/players.py data/lineups.py; Write-Host \"EXIT $LASTEXITCODE\")",
+      "Bash(git switch *)"
     ]
   }
 }

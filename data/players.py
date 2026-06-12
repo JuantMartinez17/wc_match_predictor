@@ -35,8 +35,8 @@ _HEADERS = {
     "Origin": "https://www.sofascore.com",
 }
 
-_TTL_TEAM_ID = 30 * 24 * 3600   # 30 días — IDs son estables
-_TTL_SQUAD   =  7 * 24 * 3600   # 7 días  — valores cambian poco
+_TTL_TEAM_ID = 30 * 24 * 3600  # 30 días — IDs son estables
+_TTL_SQUAD = 7 * 24 * 3600  # 7 días  — valores cambian poco
 
 
 # Nombres de búsqueda en SofaScore para los casos que difieren del canónico
@@ -56,6 +56,7 @@ _SEARCH_NAME: dict[str, str] = {
 # Utilidades internas
 # ---------------------------------------------------------------------------
 
+
 def _fetch(url: str) -> dict:
     req = urllib.request.Request(url, headers=_HEADERS)
     with urllib.request.urlopen(req, timeout=12) as r:
@@ -73,6 +74,7 @@ def _fresh(path: Path, ttl: float) -> bool:
 # ---------------------------------------------------------------------------
 # Búsqueda de ID de selección
 # ---------------------------------------------------------------------------
+
 
 def _team_id_path(team: str, cache_dir: Path) -> Path:
     return cache_dir / f"ss_teamid_{_slug(team)}.json"
@@ -95,10 +97,12 @@ def find_national_team_id(team_canonical: str, cache_dir: Path) -> int | None:
             team = hit.get("entity", {})
             if team.get("sport", {}).get("slug") != "football":
                 continue
-            # Las selecciones nacionales tienen type "national"
-            if team.get("type") == "national":
+            # SofaScore marca selecciones con national=true (boolean), no type="national"
+            if team.get("national") is True:
                 tid = team["id"]
-                path.write_text(json.dumps({"id": tid, "name": team.get("name")}), encoding="utf-8")
+                path.write_text(
+                    json.dumps({"id": tid, "name": team.get("name")}), encoding="utf-8"
+                )
                 return tid
     except Exception:
         pass
@@ -108,6 +112,7 @@ def find_national_team_id(team_canonical: str, cache_dir: Path) -> int | None:
 # ---------------------------------------------------------------------------
 # Valores de mercado del plantel
 # ---------------------------------------------------------------------------
+
 
 def _squad_path(team: str, cache_dir: Path) -> Path:
     return cache_dir / f"squad_values_{_slug(team)}.json"
@@ -155,6 +160,7 @@ def get_squad_values(
 # Cálculo del valor del 11 inicial
 # ---------------------------------------------------------------------------
 
+
 def compute_xi_value(
     lineup_names: list[str],
     squad_values: dict[str, float],
@@ -196,7 +202,7 @@ def derive_absences(
     lineup_names: list[str],
     squad_values: dict[str, float],
     top_n: int = 15,
-) -> "pd.DataFrame":
+) -> pd.DataFrame:  # noqa: F821
     """
     Identifica jugadores clave (top-N por valor de mercado) que no están en
     el XI confirmado. En un Mundial el técnico siempre pone su mejor once
@@ -253,6 +259,7 @@ def derive_absences(
 
 if __name__ == "__main__":
     import sys
+
     team = " ".join(sys.argv[1:]) or "Argentina"
     print(f"Buscando valores de plantilla para: {team}")
     values = get_squad_values(team)
