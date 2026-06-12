@@ -22,7 +22,7 @@ import urllib.request
 from pathlib import Path
 
 _BASE = "https://api.sofascore.com/api/v1"
-_WC_TOURNAMENT_ID = 16   # FIFA World Cup en SofaScore
+_WC_TOURNAMENT_ID = 16  # FIFA World Cup en SofaScore
 
 _HEADERS = {
     "User-Agent": (
@@ -36,9 +36,9 @@ _HEADERS = {
     "Origin": "https://www.sofascore.com",
 }
 
-_TTL_SEASON  =  7 * 24 * 3600   # 7 días  — el season_id no cambia
-_TTL_EVENT   =       3600        # 1 hora  — el event_id tampoco cambia
-_TTL_LINEUP  =       3600        # 1 hora  — re-chequea por si se actualizó
+_TTL_SEASON = 7 * 24 * 3600  # 7 días  — el season_id no cambia
+_TTL_EVENT = 3600  # 1 hora  — el event_id tampoco cambia
+_TTL_LINEUP = 3600  # 1 hora  — re-chequea por si se actualizó
 
 
 # Nombres de equipos tal como aparecen en SofaScore para el filtro de eventos
@@ -57,6 +57,7 @@ _SS_TEAM_NAME: dict[str, str] = {
 # ---------------------------------------------------------------------------
 # Utilidades internas
 # ---------------------------------------------------------------------------
+
 
 def _fetch(url: str) -> dict:
     req = urllib.request.Request(url, headers=_HEADERS)
@@ -81,6 +82,7 @@ def _cache_dir_init(cache_dir: str | Path) -> Path:
 # ---------------------------------------------------------------------------
 # Season ID del Mundial 2026
 # ---------------------------------------------------------------------------
+
 
 def _season_id_path(cache_dir: Path) -> Path:
     return cache_dir / "ss_wc2026_season_id.json"
@@ -116,6 +118,7 @@ def _get_wc2026_season_id(cache_dir: Path) -> int | None:
 # Búsqueda del evento (partido) por fecha y equipos
 # ---------------------------------------------------------------------------
 
+
 def _event_id_path(team_a: str, team_b: str, match_date: str, cache_dir: Path) -> Path:
     key = f"{_slug(team_a)}_vs_{_slug(team_b)}_{match_date}"
     return cache_dir / f"ss_event_{key}.json"
@@ -124,6 +127,7 @@ def _event_id_path(team_a: str, team_b: str, match_date: str, cache_dir: Path) -
 def _name_matches(ss_name: str, canonical: str) -> bool:
     """Compara nombre SofaScore con nombre canónico, tolerando variaciones."""
     import difflib
+
     ss_lower = ss_name.lower()
     canon_lower = canonical.lower()
     mapped_lower = _SS_TEAM_NAME.get(canonical, canonical).lower()
@@ -131,7 +135,11 @@ def _name_matches(ss_name: str, canonical: str) -> bool:
         return True
     if mapped_lower in ss_lower or ss_lower in mapped_lower:
         return True
-    return bool(difflib.get_close_matches(ss_lower, [canon_lower, mapped_lower], n=1, cutoff=0.75))
+    return bool(
+        difflib.get_close_matches(
+            ss_lower, [canon_lower, mapped_lower], n=1, cutoff=0.75
+        )
+    )
 
 
 def find_match_event_id(
@@ -141,8 +149,12 @@ def find_match_event_id(
     cache_dir: Path,
 ) -> int | None:
     """
-    Busca el event_id del partido en SofaScore consultando todos los eventos
-    del torneo para la fecha dada.
+    Busca el event_id del partido en SofaScore paginando los eventos
+    próximos y recientes del torneo, filtrando por fecha y equipos.
+
+    SofaScore no expone un endpoint por fecha; se usan los segmentos
+    `next/{page}` y `last/{page}` (10 eventos por página) y se filtra
+    por timestamp dentro del día UTC del partido.
     """
     path = _event_id_path(team_a, team_b, match_date, cache_dir)
     if _fresh(path, _TTL_EVENT):
@@ -153,38 +165,58 @@ def find_match_event_id(
     if not season_id:
         return None
 
-    # SofaScore: todos los eventos del torneo paginados por ronda
-    # Buscamos iterando rondas hasta encontrar el partido o agotar páginas
+    # Ventana de timestamp para el día UTC de match_date
     try:
-        # Intentar con el endpoint de eventos por fecha (más eficiente)
-        date_str = match_date  # YYYY-MM-DD
-        data = _fetch(
-            f"{_BASE}/unique-tournament/{_WC_TOURNAMENT_ID}"
-            f"/season/{season_id}/events/date/{date_str}"
-        )
-        events = data.get("events", [])
+        import datetime as _dt
 
-        for evt in events:
-            ht = evt.get("homeTeam", {}).get("name", "")
-            at = evt.get("awayTeam", {}).get("name", "")
-            if _name_matches(ht, team_a) and _name_matches(at, team_b):
-                eid = evt["id"]
-                path.write_text(json.dumps({"event_id": eid}), encoding="utf-8")
-                return eid
-            # El orden puede estar invertido en SofaScore
-            if _name_matches(ht, team_b) and _name_matches(at, team_a):
-                eid = evt["id"]
-                # Guardamos también si los equipos están invertidos
-                path.write_text(json.dumps({"event_id": eid, "swapped": True}), encoding="utf-8")
-                return eid
+        day_start = int(
+            _dt.datetime.strptime(match_date, "%Y-%m-%d")
+            .replace(tzinfo=_dt.UTC)
+            .timestamp()
+        )
     except Exception:
-        pass
+        day_start = 0
+    day_end = day_start + 86400
+
+    # Paginar next y last (3 páginas × 10 eventos × 2 segmentos = 60 eventos)
+    for segment in ("next", "last"):
+        for page in range(3):
+            try:
+                data = _fetch(
+                    f"{_BASE}/unique-tournament/{_WC_TOURNAMENT_ID}"
+                    f"/season/{season_id}/events/{segment}/{page}"
+                )
+                events = data.get("events", [])
+                if not events:
+                    break  # sin más páginas
+
+                for evt in events:
+                    ts = evt.get("startTimestamp", 0)
+                    if not (day_start <= ts < day_end):
+                        continue
+                    ht = evt.get("homeTeam", {}).get("name", "")
+                    at = evt.get("awayTeam", {}).get("name", "")
+                    if _name_matches(ht, team_a) and _name_matches(at, team_b):
+                        eid = evt["id"]
+                        path.write_text(json.dumps({"event_id": eid}), encoding="utf-8")
+                        return eid
+                    if _name_matches(ht, team_b) and _name_matches(at, team_a):
+                        eid = evt["id"]
+                        path.write_text(
+                            json.dumps({"event_id": eid, "swapped": True}),
+                            encoding="utf-8",
+                        )
+                        return eid
+            except Exception:
+                break
+
     return None
 
 
 # ---------------------------------------------------------------------------
 # Lineup del partido
 # ---------------------------------------------------------------------------
+
 
 def _lineup_path(team_a: str, team_b: str, match_date: str, cache_dir: Path) -> Path:
     key = f"{_slug(team_a)}_vs_{_slug(team_b)}_{match_date}"
@@ -228,16 +260,16 @@ def get_lineup(
         confirmed = data.get("confirmed", False)
         if not confirmed:
             # Guardar estado "no confirmado" para evitar requests repetidos
-            lineup_path.write_text(
-                json.dumps({"confirmed": False}), encoding="utf-8"
-            )
+            lineup_path.write_text(json.dumps({"confirmed": False}), encoding="utf-8")
             return None
 
         # Determinar si los equipos están invertidos respecto al evento
         event_path = _event_id_path(team_a, team_b, match_date, cache_dir)
         swapped = False
         if event_path.exists():
-            swapped = json.loads(event_path.read_text(encoding="utf-8")).get("swapped", False)
+            swapped = json.loads(event_path.read_text(encoding="utf-8")).get(
+                "swapped", False
+            )
 
         home_players = _extract_starters(data.get("home", {}))
         away_players = _extract_starters(data.get("away", {}))
@@ -272,9 +304,10 @@ def _extract_starters(side: dict) -> list[str]:
 
 if __name__ == "__main__":
     import sys
+
     args = sys.argv[1:]
     if len(args) < 3:
-        print("Uso: python -m data.lineups \"Equipo A\" \"Equipo B\" YYYY-MM-DD")
+        print('Uso: python -m data.lineups "Equipo A" "Equipo B" YYYY-MM-DD')
         sys.exit(1)
 
     ta, tb, fecha = args[0], args[1], args[2]
