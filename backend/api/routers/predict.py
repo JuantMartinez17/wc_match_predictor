@@ -162,6 +162,11 @@ async def predict_match(req: PredictRequest, request: Request) -> PredictRespons
     xi_val_a, xi_desc_a = _resolve_xi_value(team_a, lineup_a, squad_a)
     xi_val_b, xi_desc_b = _resolve_xi_value(team_b, lineup_b, squad_b)
 
+    from predict import _derive_absences
+
+    absences_a = _derive_absences(lineup_a, squad_a)
+    absences_b = _derive_absences(lineup_b, squad_b)
+
     # Formación confirmada = se obtuvo y cruzó el 11 inicial real (ver _resolve_xi_value)
     lineup_confirmed_a = xi_desc_a.startswith("XI confirmado")
     lineup_confirmed_b = xi_desc_b.startswith("XI confirmado")
@@ -178,6 +183,8 @@ async def predict_match(req: PredictRequest, request: Request) -> PredictRespons
                 model=req.model,
                 squad_value_a=xi_val_a,
                 squad_value_b=xi_val_b,
+                absences_a=absences_a,
+                absences_b=absences_b,
             )
         return predictor.predict(
             team_a,
@@ -188,6 +195,8 @@ async def predict_match(req: PredictRequest, request: Request) -> PredictRespons
             model=req.model,
             squad_value_a=xi_val_a,
             squad_value_b=xi_val_b,
+            absences_a=absences_a,
+            absences_b=absences_b,
         )
 
     result = await loop.run_in_executor(executor, _run_predict)

@@ -188,6 +188,66 @@ def compute_xi_value(
 
 
 # ---------------------------------------------------------------------------
+# Ausencias inferidas del XI confirmado
+# ---------------------------------------------------------------------------
+
+
+def derive_absences(
+    lineup_names: list[str],
+    squad_values: dict[str, float],
+    top_n: int = 15,
+) -> "pd.DataFrame":
+    """
+    Identifica jugadores clave (top-N por valor de mercado) que no están en
+    el XI confirmado. En un Mundial el técnico siempre pone su mejor once
+    disponible, así que un jugador top ausente del XI muy probablemente está
+    lesionado o suspendido.
+
+    Parameters
+    ----------
+    lineup_names : nombres de los 11 titulares confirmados (SofaScore).
+    squad_values : {nombre: valor_M_EUR} del plantel completo (Transfermarkt).
+    top_n        : cuántos jugadores top considerar (default 15 — cubre XI + suplentes clave).
+
+    Returns
+    -------
+    DataFrame con columnas ['name', 'importance'], donde
+    importance = valor_jugador / media_plantel, acotado a [0, 1].
+    Vacío si no hay ausencias o si faltan datos.
+    """
+    import difflib
+
+    import pandas as pd
+
+    if not lineup_names or not squad_values:
+        return pd.DataFrame(columns=["name", "importance"])
+
+    squad_names = list(squad_values.keys())
+    mean_value = sum(squad_values.values()) / len(squad_values)
+    if mean_value == 0:
+        return pd.DataFrame(columns=["name", "importance"])
+
+    # Identificar qué jugadores del plantel están en el XI (mismo fuzzy que compute_xi_value)
+    in_xi: set[str] = set()
+    for player in lineup_names:
+        if player in squad_values:
+            in_xi.add(player)
+            continue
+        close = difflib.get_close_matches(player, squad_names, n=1, cutoff=0.72)
+        if close:
+            in_xi.add(close[0])
+
+    # Top-N por valor que NO están en el XI → ausentes
+    top_players = sorted(squad_values.items(), key=lambda x: -x[1])[:top_n]
+    rows = [
+        {"name": name, "importance": min(1.0, value / mean_value)}
+        for name, value in top_players
+        if name not in in_xi
+    ]
+    return pd.DataFrame(rows) if rows else pd.DataFrame(columns=["name", "importance"])
+
+
+# ---------------------------------------------------------------------------
 # CLI: python -m data.players <equipo>
 # ---------------------------------------------------------------------------
 
