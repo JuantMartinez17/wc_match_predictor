@@ -10,18 +10,18 @@ from pydantic import BaseModel, Field
 
 
 class Team(BaseModel):
-    id: str  # slug estable: "argentina", "korea-republic", "usa"
+    id: int  # ID numérico estable (1-48)
     canonical: str  # nombre interno en inglés: "Argentina", "Korea Republic"
     name_es: str  # nombre en español para mostrar al usuario
-    flag: str  # emoji bandera
+    flag: str  # código ISO2 para flagcdn.com
 
 
 class FixtureMatch(BaseModel):
     id: str
     date: str  # "2026-06-15"
     time_utc: str  # "20:00"
-    team_a_id: str  # slug del equipo A — usar para llamar a /api/predict
-    team_b_id: str  # slug del equipo B
+    team_a_id: int  # ID numérico del equipo A — usar para llamar a /api/predict
+    team_b_id: int  # ID numérico del equipo B
     team_a: str  # nombre canónico en inglés (para debugging)
     team_b: str
     team_a_es: str  # nombre en español para mostrar
@@ -37,8 +37,8 @@ class FixtureMatch(BaseModel):
 
 
 class PredictRequest(BaseModel):
-    team_a_id: str = Field(..., description="ID del equipo A (slug de /api/teams)")
-    team_b_id: str = Field(..., description="ID del equipo B (slug de /api/teams)")
+    team_a_id: int = Field(..., description="ID numérico del equipo A (de /api/teams)")
+    team_b_id: int = Field(..., description="ID numérico del equipo B (de /api/teams)")
     date: str | None = Field(default=None, description="YYYY-MM-DD; default = hoy")
     knockout: bool = Field(
         default=False, description="True = modo eliminatoria con penales"
@@ -66,8 +66,8 @@ class ModelAccuracy(BaseModel):
 
 class PredictResponse(BaseModel):
     # Equipos
-    team_a_id: str  # slug — clave estable
-    team_b_id: str
+    team_a_id: int  # ID numérico — clave estable
+    team_b_id: int
     team_a: str  # canónico inglés
     team_b: str
     team_a_es: str  # español para mostrar
@@ -89,7 +89,7 @@ class PredictResponse(BaseModel):
 
     # Sede
     neutral: bool
-    home_team_id: str | None  # slug del equipo local, null si es cancha neutral
+    home_team_id: int | None  # ID numérico del equipo local, null si es cancha neutral
     venue_label: str
 
     # Info de plantilla / lineup

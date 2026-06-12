@@ -5,14 +5,14 @@ Constantes compartidas entre routers: IDs de equipos y códigos de banderas.
 
 ID de equipo
 ------------
-Slug ASCII estable derivado del nombre canónico en inglés. Inmutable mientras
-el nombre canónico no cambie, lo que lo hace seguro como clave en API y frontend.
+Entero positivo estable (1-48) asignado por orden alfabético ASCII del nombre
+canónico en inglés. El orden es determinista mientras el conjunto de equipos no
+cambie.
 
-  "Argentina"              → "argentina"
-  "Korea Republic"         → "korea-republic"
-  "Côte d'Ivoire"          → "cote-divoire"
-  "Bosnia and Herzegovina" → "bosnia-and-herzegovina"
-  "USA"                    → "usa"
+  "Algeria"                → 1
+  "Argentina"              → 2
+  "Korea Republic"         → 27
+  "USA"                    → 47
 
 Banderas
 --------
@@ -29,36 +29,40 @@ import unicodedata
 from data.ingest import WC2026_TEAMS
 
 # ---------------------------------------------------------------------------
-# Generación de IDs
+# Generación de IDs numéricos
 # ---------------------------------------------------------------------------
 
 
-def _slug(canonical: str) -> str:
-    """Convierte un nombre canónico en un slug ASCII único y URL-safe."""
+def _sort_key(canonical: str) -> str:
+    """Clave ASCII normalizada para ordenamiento determinista."""
     s = (
         unicodedata.normalize("NFKD", canonical)
         .encode("ascii", "ignore")
         .decode("ascii")
     )
     s = re.sub(r"['\"]", "", s).lower()
-    s = re.sub(r"[^a-z0-9]+", "-", s).strip("-")
-    return s
+    return re.sub(r"[^a-z0-9]+", "-", s).strip("-")
 
 
-# canonical (inglés) → id slug
-TEAM_IDS: dict[str, str] = {canonical: _slug(canonical) for canonical in WC2026_TEAMS}
+# Orden estable: alfabético por clave ASCII del nombre canónico
+_SORTED_TEAMS: list[str] = sorted(WC2026_TEAMS, key=_sort_key)
 
-# id slug → canonical (inglés) — para resolver el request del frontend
-CANONICAL_BY_ID: dict[str, str] = {v: k for k, v in TEAM_IDS.items()}
+# canonical (inglés) → id numérico (1-based)
+TEAM_IDS: dict[str, int] = {
+    canonical: i + 1 for i, canonical in enumerate(_SORTED_TEAMS)
+}
+
+# id numérico → canonical (inglés) — para resolver el request del frontend
+CANONICAL_BY_ID: dict[int, str] = {v: k for k, v in TEAM_IDS.items()}
 
 
-def team_id(canonical: str) -> str:
-    """Devuelve el ID del equipo dado su nombre canónico."""
-    return TEAM_IDS.get(canonical, _slug(canonical))
+def team_id(canonical: str) -> int:
+    """Devuelve el ID numérico del equipo dado su nombre canónico."""
+    return TEAM_IDS[canonical]
 
 
-def canonical_from_id(tid: str) -> str | None:
-    """Devuelve el nombre canónico dado un ID. None si no existe."""
+def canonical_from_id(tid: int) -> str | None:
+    """Devuelve el nombre canónico dado un ID numérico. None si no existe."""
     return CANONICAL_BY_ID.get(tid)
 
 
