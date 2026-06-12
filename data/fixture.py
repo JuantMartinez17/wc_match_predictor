@@ -40,6 +40,8 @@ _ESPN_TO_CANONICAL: dict[str, str] = {
     "Cape Verde": "Cabo Verde",
     "Curacao": "Curaçao",
     "Bosnia and Herzegovina": "Bosnia and Herzegovina",
+    "Bosnia & Herzegovina": "Bosnia and Herzegovina",
+    "Bosnia-Herzegovina": "Bosnia and Herzegovina",
     "Türkiye": "Turkey",
     "Turkey": "Turkey",
     "IR Iran": "Iran",
