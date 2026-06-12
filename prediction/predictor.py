@@ -16,6 +16,8 @@ Flujo:
 
 from __future__ import annotations
 
+import threading
+from collections import OrderedDict
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -44,6 +46,23 @@ _MODELS = {
     "bivariate_poisson": "bivariate_poisson",
     "poisson_simple": "poisson_simple",
 }
+
+# Máximo de fechas de referencia con artefactos de ventana cacheados.
+_WINDOW_CACHE_MAX = 64
+
+
+@dataclass
+class _WindowArtifacts:
+    """Artefactos derivados de la ventana de entrenamiento de una fecha.
+
+    Dependen únicamente de la fecha de referencia (no de los equipos), por lo
+    que se cachean por día: el fit del GLM es el costo dominante por predicción.
+    """
+
+    train: pd.DataFrame
+    weights: np.ndarray
+    strength: StrengthModel
+    rho: float | None  # rho de Dixon-Coles estimado en esta ventana; None si no se estimó
 
 
 @dataclass
@@ -101,6 +120,9 @@ class MatchPredictor:
         )
         self._last_matrix = None
         self._last_rho: float = self.cfg.dixon_coles.rho
+        # Caché de artefactos de ventana por fecha (asume self.matches inmutable).
+        self._window_cache: OrderedDict[pd.Timestamp, _WindowArtifacts] = OrderedDict()
+        self._window_lock = threading.Lock()
 
     # ---------------------------------------------------------------- model
     def _build_model(
@@ -109,15 +131,20 @@ class MatchPredictor:
         train: pd.DataFrame | None = None,
         weights: np.ndarray | None = None,
         strength: "StrengthModel | None" = None,
+        rho: float | None = None,
     ) -> ScoreModel:
         if name == "dixon_coles":
             dc_cfg = self.cfg.dixon_coles
-            if dc_cfg.estimate_rho and strength is not None and train is not None and weights is not None:
-                rho = strength.estimate_dixon_coles_rho(
-                    train, weights, bounds=dc_cfg.rho_bounds, default=dc_cfg.rho
-                )
-                # DixonColesConfig es frozen -> instancia nueva con rho estimado.
-                dc_cfg = DixonColesConfig(rho=rho, estimate_rho=False, rho_bounds=dc_cfg.rho_bounds)
+            if dc_cfg.estimate_rho:
+                if rho is None and strength is not None and train is not None and weights is not None:
+                    rho = strength.estimate_dixon_coles_rho(
+                        train, weights, bounds=dc_cfg.rho_bounds, default=dc_cfg.rho
+                    )
+                if rho is not None:
+                    # DixonColesConfig es frozen -> instancia nueva con rho estimado.
+                    dc_cfg = DixonColesConfig(
+                        rho=rho, estimate_rho=False, rho_bounds=dc_cfg.rho_bounds
+                    )
             self._last_rho = dc_cfg.rho
             return DixonColesModel(dc_cfg)
         if name == "bivariate_poisson":
@@ -132,6 +159,43 @@ class MatchPredictor:
         cutoff = ref - pd.DateOffset(months=self.cfg.decay.max_months)
         mask = (self.matches["date"] >= cutoff) & (self.matches["date"] < ref)
         return self.matches.loc[mask].reset_index(drop=True)
+
+    def _window_artifacts(self, ref: pd.Timestamp) -> _WindowArtifacts:
+        """
+        Ventana de entrenamiento + GLM de fuerza + rho DC, cacheados por fecha
+        (granularidad día). El fit del GLM depende sólo de la fecha de
+        referencia, así que requests sucesivos a la misma fecha lo reutilizan.
+
+        El fit se mantiene bajo el lock a propósito: dos requests concurrentes
+        a la misma fecha no deben pagar el fit dos veces.
+        """
+        key = pd.Timestamp(ref).normalize()
+        with self._window_lock:
+            cached = self._window_cache.get(key)
+            if cached is not None:
+                self._window_cache.move_to_end(key)
+                return cached
+
+            train = self._training_window(key)
+            weights = combined_weights(train, key, self.cfg.decay, self.cfg.importance)
+            strength = StrengthModel(self.cfg.strength, self.cfg.elo).fit(train, weights)
+            rho = None
+            if self.cfg.dixon_coles.estimate_rho:
+                rho = strength.estimate_dixon_coles_rho(
+                    train,
+                    weights,
+                    bounds=self.cfg.dixon_coles.rho_bounds,
+                    default=self.cfg.dixon_coles.rho,
+                )
+            art = _WindowArtifacts(train=train, weights=weights, strength=strength, rho=rho)
+            self._window_cache[key] = art
+            while len(self._window_cache) > _WINDOW_CACHE_MAX:
+                self._window_cache.popitem(last=False)
+            return art
+
+    def warm_window(self, reference_date: str | pd.Timestamp) -> None:
+        """Pre-ajusta y cachea el modelo de fuerza para una fecha dada."""
+        self._window_artifacts(pd.Timestamp(reference_date))
 
     # ---------------------------------------------------------- core común
     def _match_core(
@@ -151,10 +215,8 @@ class MatchPredictor:
         Calcula lambdas finales, modelo de marcador y matriz conjunta para un
         partido. Reutilizado por `predict` (resultado a 90') y `predict_knockout`.
         """
-        train = self._training_window(ref)
-        weights = combined_weights(train, ref, self.cfg.decay, self.cfg.importance)
-
-        strength = StrengthModel(self.cfg.strength, self.cfg.elo).fit(train, weights)
+        art = self._window_artifacts(ref)
+        train, weights, strength = art.train, art.weights, art.strength
         lam_a, lam_b = strength.expected_goals(team_a, team_b, self.ratings, neutral, home_team)
         base_la, base_lb = lam_a, lam_b
 
@@ -189,7 +251,9 @@ class MatchPredictor:
         lam_a = max(lam_a, 0.05)
         lam_b = max(lam_b, 0.05)
 
-        score_model = self._build_model(model, train=train, weights=weights, strength=strength)
+        score_model = self._build_model(
+            model, train=train, weights=weights, strength=strength, rho=art.rho
+        )
         matrix = score_model.score_matrix(lam_a, lam_b, self.cfg.simulation.max_goals)
         self._last_matrix = matrix
 
@@ -322,10 +386,33 @@ class MatchPredictor:
         total = p_a_advance + p_b_advance
         p_a_advance, p_b_advance = p_a_advance / total, p_b_advance / total
 
+        # Predicción completa de los 90' (marcadores + explicación), con el
+        # mismo formato que `predict`. La clave "regulation" se mantiene como
+        # dict por compatibilidad con el CLI.
+        explanation = self._explain(
+            team_a, team_b, ref, core["base_la"], core["base_lb"],
+            core["lam_a"], core["lam_b"], core["avail_a"], core["avail_b"],
+            absences_a, absences_b,
+            core["m_val_a"], core["m_coach_a"], core["m_h2h_a"], core["strength"],
+        )
+        prediction = Prediction(
+            team_a=team_a,
+            team_b=team_b,
+            p_a=p_a_reg,
+            p_draw=p_draw_reg,
+            p_b=p_b_reg,
+            expected_goals_a=core["lam_a"],
+            expected_goals_b=core["lam_b"],
+            top_scorelines=top_scorelines(matrix, k=10),
+            explanation=explanation,
+            model_name=core["score_model"].name,
+        )
+
         return {
             "team_a": team_a,
             "team_b": team_b,
             "regulation": {"p_a": p_a_reg, "p_draw": p_draw_reg, "p_b": p_b_reg},
+            "prediction": prediction,
             "p_advance_a": p_a_advance,
             "p_advance_b": p_b_advance,
             "p_penalties": p_draw_reg * p_draw_et,
