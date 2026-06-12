@@ -157,7 +157,7 @@ app = FastAPI(
 )
 
 _raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001")
-_CORS_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+_CORS_ORIGINS = [o.strip().rstrip("/") for o in _raw_origins.split(",") if o.strip()]
 
 # Optional regex for dynamic origins, e.g. Vercel preview deployments:
 # https://<project>-git-<branch>-<scope>.vercel.app
