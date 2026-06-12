@@ -56,9 +56,9 @@ TEAM_IDS: dict[str, int] = {
 CANONICAL_BY_ID: dict[int, str] = {v: k for k, v in TEAM_IDS.items()}
 
 
-def team_id(canonical: str) -> int:
-    """Devuelve el ID numérico del equipo dado su nombre canónico."""
-    return TEAM_IDS[canonical]
+def team_id(canonical: str) -> int | None:
+    """Devuelve el ID numérico del equipo dado su nombre canónico. None si no está en el torneo."""
+    return TEAM_IDS.get(canonical)
 
 
 def canonical_from_id(tid: int) -> str | None:

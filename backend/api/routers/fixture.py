@@ -67,13 +67,18 @@ async def get_fixture(
     for m in raw:
         ta = m["team_a"]
         tb = m["team_b"]
+        tid_a = team_id(ta)
+        tid_b = team_id(tb)
+        if tid_a is None or tid_b is None:
+            # Equipo no clasificado al WC2026 — ignorar el partido
+            continue
         result.append(
             FixtureMatch(
                 id=m["id"],
                 date=m["date"],
                 time_utc=m["time_utc"],
-                team_a_id=team_id(ta),
-                team_b_id=team_id(tb),
+                team_a_id=tid_a,
+                team_b_id=tid_b,
                 team_a=ta,
                 team_b=tb,
                 team_a_es=TEAM_EN_TO_ES.get(ta, ta),
