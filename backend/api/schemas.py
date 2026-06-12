@@ -55,6 +55,15 @@ class ScoreProbability(BaseModel):
     probability: float  # 0–1
 
 
+class ModelAccuracy(BaseModel):
+    model: str
+    label: str
+    matches_evaluated: int
+    correct_result_pct: float
+    brier_score: float
+    dataset: str
+
+
 class PredictResponse(BaseModel):
     # Equipos
     team_a_id: str  # slug — clave estable

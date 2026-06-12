@@ -19,7 +19,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import fixture, predict, teams
+from .routers import accuracy, fixture, predict, teams
 
 # ---------------------------------------------------------------------------
 # Lifespan — carga del modelo al arrancar (una sola vez)
@@ -48,7 +48,40 @@ async def lifespan(app: FastAPI):
 
     app.state.predictor = predictor
     app.state.executor = _executor
+    app.state.accuracy_metrics = None  # se llenará al terminar el backtest
+
+    # Backtest de accuracy en background — no bloquea al predictor principal
+    async def _bg_accuracy() -> None:
+        from config import DEFAULT_CONFIG
+        from data.synthetic import generate_team_metadata
+
+        from .routers.accuracy import (
+            compute_wc_backtest,
+            load_accuracy_cache,
+            save_accuracy_cache,
+        )
+
+        metadata = generate_team_metadata(seed=11)
+
+        cached = await loop.run_in_executor(_executor, load_accuracy_cache)
+        if cached is not None:
+            app.state.accuracy_metrics = cached
+            print("  [accuracy] Métricas cargadas del caché.")
+            return
+
+        print("  [accuracy] Calculando métricas de backtesting...")
+        metrics = await loop.run_in_executor(
+            _executor,
+            lambda: compute_wc_backtest(metadata, DEFAULT_CONFIG),
+        )
+        await loop.run_in_executor(_executor, lambda: save_accuracy_cache(metrics))
+        app.state.accuracy_metrics = metrics
+
+    accuracy_task = asyncio.ensure_future(_bg_accuracy())
+
     yield
+
+    accuracy_task.cancel()
     _executor.shutdown(wait=False)
 
 
@@ -83,6 +116,7 @@ app.add_middleware(
 app.include_router(teams.router, prefix="/api", tags=["teams"])
 app.include_router(fixture.router, prefix="/api", tags=["fixture"])
 app.include_router(predict.router, prefix="/api", tags=["predict"])
+app.include_router(accuracy.router, prefix="/api", tags=["accuracy"])
 
 
 @app.get("/health", tags=["infra"])

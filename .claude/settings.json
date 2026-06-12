@@ -16,7 +16,8 @@
       "PowerShell(python -c \"import fastapi; import uvicorn; print\\('fastapi:', fastapi.__version__, '| uvicorn:', uvicorn.__version__\\)\")",
       "PowerShell(New-Item -ItemType Directory -Force -Path \"c:\\\\Users\\\\juant\\\\Documents\\\\wc_match_predictor\\\\frontend\\\\types\")",
       "PowerShell(New-Item -ItemType Directory -Force -Path \"c:\\\\Users\\\\juant\\\\Documents\\\\wc_match_predictor\\\\frontend\\\\hooks\")",
-      "PowerShell(cd \"c:\\\\Users\\\\juant\\\\Documents\\\\wc_match_predictor\"; $env:PYTHONIOENCODING=\"utf-8\"; python predict.py \"argentina\" \"brasil\" --date 2026-06-20 2>&1 | Select-Object -First 20)"
+      "PowerShell(cd \"c:\\\\Users\\\\juant\\\\Documents\\\\wc_match_predictor\"; $env:PYTHONIOENCODING=\"utf-8\"; python predict.py \"argentina\" \"brasil\" --date 2026-06-20 2>&1 | Select-Object -First 20)",
+      "Bash(python -c ' *)"
     ]
   }
 }
