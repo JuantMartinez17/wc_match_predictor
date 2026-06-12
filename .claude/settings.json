@@ -39,7 +39,10 @@
       "PowerShell(cd \"c:\\\\Users\\\\Juan Tomás Martínez\\\\Documents\\\\wc_match_predictor\"; python -m ruff check data/players.py data/lineups.py; python -m ruff format --check data/players.py data/lineups.py; Write-Host \"EXIT $LASTEXITCODE\")",
       "PowerShell(cd \"c:\\\\Users\\\\Juan Tomás Martínez\\\\Documents\\\\wc_match_predictor\"; python -m ruff check data/players.py data/lineups.py; python -m ruff format data/players.py data/lineups.py; python -m ruff format --check data/players.py data/lineups.py; Write-Host \"EXIT $LASTEXITCODE\")",
       "PowerShell(cd \"c:\\\\Users\\\\Juan Tomás Martínez\\\\Documents\\\\wc_match_predictor\"; python -m ruff check --fix data/players.py data/lineups.py; python -m ruff check data/players.py data/lineups.py; Write-Host \"EXIT $LASTEXITCODE\")",
-      "Bash(git switch *)"
+      "Bash(git switch *)",
+      "WebFetch(domain:site.api.espn.com)",
+      "PowerShell(cd \"c:\\\\Users\\\\Juan Tomás Martínez\\\\Documents\\\\wc_match_predictor\"; python -m ruff check data/lineups.py; python -m ruff format --check data/lineups.py; Write-Host \"EXIT $LASTEXITCODE\")",
+      "PowerShell(cd \"c:\\\\Users\\\\Juan Tomás Martínez\\\\Documents\\\\wc_match_predictor\"; python -m ruff format data/lineups.py; python -m ruff check data/lineups.py; Write-Host \"EXIT $LASTEXITCODE\")"
     ]
   }
 }
