@@ -88,10 +88,14 @@ def compute_wc_backtest(metadata, config) -> list[dict]:
     print("  [accuracy] Cargando datos para backtest (desde 2006)...")
     all_matches = build_dataset(since_year=2006)
 
-    test = all_matches[
-        (all_matches["competition"] == "world_cup")
-        & (all_matches["date"].dt.year.isin([2018, 2022]))
-    ].sort_values("date").reset_index(drop=True)
+    test = (
+        all_matches[
+            (all_matches["competition"] == "world_cup")
+            & (all_matches["date"].dt.year.isin([2018, 2022]))
+        ]
+        .sort_values("date")
+        .reset_index(drop=True)
+    )
 
     print(f"  [accuracy] {len(test)} partidos de prueba (WC 2018+2022)")
 
@@ -174,8 +178,31 @@ def compute_wc_backtest(metadata, config) -> list[dict]:
     "/accuracy",
     response_model=list[ModelAccuracy],
     summary="Métricas de backtesting por modelo",
+    response_description=(
+        "Un objeto por modelo (dixon_coles, bivariate_poisson, poisson_simple) "
+        "con su porcentaje de acierto y Brier Score sobre partidos del Mundial 2018 y 2022."
+    ),
 )
 async def get_accuracy(request: Request) -> list[ModelAccuracy]:
+    """
+    Devuelve las métricas de backtesting *walk-forward* fuera de muestra de cada modelo.
+
+    ### Metodología
+    Para cada partido del Mundial **2018 y 2022** (test set), el motor se entrena
+    únicamente con los datos **anteriores** a ese partido y luego predice.
+    No hay fuga de información del futuro.
+
+    ### Métricas
+    - **`correct_result_pct`** — porcentaje de partidos en que el modelo acertó
+      el resultado 1X2 (victoria local, empate o victoria visitante).
+    - **`brier_score`** — error cuadrático multiclase. Mide calibración probabilística.
+      Valores típicos en fútbol internacional: 0.19–0.24. Menor es mejor.
+
+    ### Disponibilidad
+    Las métricas se calculan en background al arrancar el servidor y se cachean
+    30 días en disco. Si el cálculo aún no terminó, devuelve `503`.
+    El cálculo inicial tarda entre 3 y 6 minutos.
+    """
     metrics = getattr(request.app.state, "accuracy_metrics", None)
     if metrics is None:
         raise HTTPException(

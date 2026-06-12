@@ -15,9 +15,19 @@ router = APIRouter()
 
 
 @router.get(
-    "/teams", response_model=list[Team], summary="Lista de equipos clasificados"
+    "/teams",
+    response_model=list[Team],
+    summary="Lista de equipos clasificados al Mundial 2026",
+    response_description="48 equipos ordenados alfabéticamente por nombre en español.",
 )
 async def get_teams() -> list[Team]:
+    """
+    Devuelve los 48 equipos clasificados al Mundial 2026 con sus IDs numéricos.
+
+    Los IDs son estables e independientes del idioma — úsalos para llamar a
+    `POST /api/predict`. El campo `flag` es un código ISO2 compatible con
+    [flagcdn.com](https://flagcdn.com) (ej. `'ar'` → `flagcdn.com/w80/ar.png`).
+    """
     from data.ingest import WC2026_TEAMS
     from predict import TEAM_EN_TO_ES
 

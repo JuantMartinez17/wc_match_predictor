@@ -89,11 +89,71 @@ async def lifespan(app: FastAPI):
 # App
 # ---------------------------------------------------------------------------
 
+_TAGS_METADATA = [
+    {
+        "name": "teams",
+        "description": (
+            "Lista de los 48 equipos clasificados al Mundial 2026. "
+            "**Primer endpoint a consultar** para obtener los IDs numéricos que se pasan a `/api/predict`."
+        ),
+    },
+    {
+        "name": "fixture",
+        "description": (
+            "Fixture oficial del Mundial 2026 vía ESPN API. "
+            "Los campos `team_a_id` y `team_b_id` de cada partido se pueden pasar directamente a `/api/predict`. "
+            "Caché de 30 minutos; si ESPN no responde, devuelve la última versión guardada."
+        ),
+    },
+    {
+        "name": "predict",
+        "description": (
+            "Motor de predicción probabilística. Devuelve probabilidades 1X2 calibradas, "
+            "goles esperados, los 8 marcadores más probables y una narrativa en español. "
+            "El motor integra Elo, GLM de fuerza ofensiva/defensiva, modelo de marcador "
+            "(Dixon-Coles por defecto) y simulación Monte Carlo de 100 000 iteraciones. "
+            "Cuando el lineup está confirmado (≈1 h antes del partido), incorpora el valor "
+            "real del XI y penaliza ausencias de titulares clave."
+        ),
+    },
+    {
+        "name": "accuracy",
+        "description": (
+            "Métricas de backtesting *walk-forward* fuera de muestra. "
+            "Se calculan al arrancar el servidor evaluando cada modelo sobre los partidos "
+            "del Mundial 2018 y 2022, entrenando únicamente con datos anteriores a cada partido. "
+            "El resultado se cachea 30 días en disco."
+        ),
+    },
+    {
+        "name": "infra",
+        "description": (
+            "Health check del servidor. "
+            "Hacer polling a `GET /health` al iniciar hasta que `predictor = 'ready'` "
+            "(la carga inicial tarda ~30 s)."
+        ),
+    },
+]
+
 app = FastAPI(
     title="WC 2026 Predictor API",
-    version="1.0.0",
-    description="API de predicción de partidos — Copa del Mundo 2026",
+    version="1.1.0",
+    description=(
+        "API de predicción de resultados para la **Copa del Mundo 2026**.\n\n"
+        "Devuelve probabilidades 1X2 calibradas, goles esperados, marcadores más probables "
+        "y una narrativa en español para cualquier combinación de los 48 equipos clasificados.\n\n"
+        "### Flujo típico de integración\n"
+        "1. `GET /health` → polling hasta `predictor = 'ready'`\n"
+        "2. `GET /api/teams` → guardar IDs numéricos\n"
+        "3. `GET /api/fixture` → partidos con `team_a_id`/`team_b_id` listos para predecir\n"
+        "4. `POST /api/predict` → probabilidades + narrativa\n"
+        "5. `GET /api/accuracy` → calibración histórica de cada modelo\n\n"
+        "### IDs de equipos\n"
+        "Todos los endpoints usan **IDs numéricos enteros (1–48)** como identificadores. "
+        "Los IDs son estables mientras no cambie el conjunto de equipos clasificados."
+    ),
     lifespan=lifespan,
+    openapi_tags=_TAGS_METADATA,
 )
 
 _raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001")
