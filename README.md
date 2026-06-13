@@ -25,8 +25,9 @@ wc_match_predictor/
 ├── data/                            # Ingesta y datos externos
 │   ├── ingest.py                    # Histórico martj42 (CC BY 4.0), caché 24 h
 │   ├── fixture.py                   # ESPN API, caché 30 min
-│   ├── players.py                   # Valores de mercado SofaScore/Transfermarkt, caché 7 días
-│   ├── lineups.py                   # 11 inicial SofaScore, caché 1 h
+│   ├── player_ratings.py            # Ratings EA FC/FIFA → valores de plantilla (wc2026_ratings.json)
+│   ├── players.py                   # Helpers de plantilla: valor del XI y ausencias
+│   ├── lineups.py                   # 11 inicial vía ESPN, caché 1 h
 │   └── cache/                       # Archivos de caché locales
 │
 ├── features/                        # Ingeniería de variables
@@ -82,7 +83,7 @@ pip install -r requirements.txt
 python -m uvicorn backend.api.main:app --reload --port 8000
 ```
 
-El predictor tarda ~30 s en cargar. Hacer polling a `/health` hasta que `predictor = "ready"` antes de enviar predicciones.
+El predictor tarda unos segundos en cargar (algo más en el primer arranque en frío, si el dataset no está cacheado). Hacer polling a `/health` hasta que `predictor = "ready"` antes de enviar predicciones.
 
 **Swagger UI:** `http://localhost:8000/docs`  
 **ReDoc:** `http://localhost:8000/redoc`
@@ -343,11 +344,16 @@ Motor de predicción completo para un partido.
 
 **Tiempos de respuesta:**
 
+El API calcula las probabilidades de forma **exacta** sobre la matriz de marcadores (determinista, sin el ruido ni el costo del Monte Carlo — esa simulación queda para el CLI). Latencias típicas:
+
 | Situación | Tiempo |
 |---|---|
-| Primera predicción tras arrancar | 30–60 s (carga del modelo) |
-| Predicciones siguientes | 1–4 s (Monte Carlo 100k iter.) |
-| Con consulta de lineup a ESPN | +1–2 s adicionales |
+| Respuesta cacheada (mismo request dentro del TTL) | ~2 ms |
+| Fecha pre-cargada (warm-up) o ya consultada antes | ~10–15 ms |
+| Primera consulta a una fecha nueva (ajuste del GLM) | ~1–1.5 s |
+| Lineup confirmado vía ESPN (hoy/mañana, sin caché) | +0.3–0.4 s |
+
+Al arrancar, el predictor tarda unos segundos en quedar `ready` (hacer polling a `/health`); el warm-up pre-calcula las fechas próximas en segundo plano para que las primeras consultas del fixture caigan en la fila de ~10–15 ms. Para partidos a más de 1 día no se consulta el lineup (se publica ~1 h antes), evitando esa latencia.
 
 ---
 
@@ -422,10 +428,10 @@ Ejemplo de `422`:
 |---|---|---|
 | Resultados históricos (1872–hoy) | [martj42/international_results](https://github.com/martj42/international_results) — CC BY 4.0 | 24 h |
 | Fixture del Mundial | ESPN API pública | 30 min |
-| Valores de mercado por jugador | SofaScore / Transfermarkt | 7 días |
-| 11 inicial confirmado | SofaScore API | 1 h |
+| Valores de plantilla por jugador | Ratings EA FC/FIFA (`data/wc2026_ratings.json`, estático) | — |
+| 11 inicial confirmado | ESPN API pública | 1 h |
 
-Todo el acceso a APIs externas tiene fallback: si no hay conexión, se usa la última versión cacheada (o valores sintéticos para el motor).
+Todo el acceso a APIs externas tiene fallback: si no hay conexión, se usa la última versión cacheada. Los valores de plantilla son estáticos (no dependen de red).
 
 ---
 
@@ -443,10 +449,10 @@ Datos históricos (2006–hoy)
         │
         ▼
    Ajustes secundarios
-   ├─ Valor del XI (Transfermarkt)
-   ├─ Disponibilidad (ausencias del top-15 por valor)
+   ├─ Valor del XI (ratings EA FC/FIFA)
+   ├─ Disponibilidad (ausencias del top-11 por rating)
    ├─ Historial directo (H2H)
-   └─ Factor entrenador
+   └─ Factor de forma (tendencia Elo reciente)
         │
         ▼
    Modelo de marcador
@@ -456,16 +462,16 @@ Datos históricos (2006–hoy)
    Matriz P(i,j) — prob. de cada marcador
         │
         ▼
-   Monte Carlo 100k ──► p_a, p_draw, p_b
-                   └──► top_scorelines
+   Cálculo exacto (API) / Monte Carlo 100k (CLI) ──► p_a, p_draw, p_b
+                                                └──► top_scorelines
 ```
 
 ### Ajuste por lineup confirmado
 
-Cuando el 11 inicial está disponible en SofaScore (~1 h antes del partido), el motor:
+Cuando el 11 inicial está disponible en ESPN (~1 h antes del partido), el motor:
 
-1. Suma el valor de mercado real de los 11 titulares (`squad_value_a/b`).
-2. Compara el top-15 del plantel por valor con los titulares confirmados.
+1. Suma el valor real de los 11 titulares según su rating EA FC/FIFA (`squad_value_a/b`).
+2. Compara el top-11 del plantel por rating con los titulares confirmados.
 3. Los jugadores top que **no están en el XI** se tratan como ausentes (probable lesión/suspensión en contexto de Mundial).
 4. Aplica `availability_score` → reduce `λ` ofensivo en proporción a la importancia de los ausentes (`availability_sensitivity = 0.25`).
 
@@ -476,10 +482,10 @@ Cuando el 11 inicial está disponible en SofaScore (~1 h antes del partido), el 
 | Decisión | Motivo |
 |---|---|
 | **Dixon-Coles como modelo principal** | Corrige la dependencia negativa entre marcadores bajos (0-0, 1-0, 0-1, 1-1); más fiel que Poisson simple |
-| **Shrinkage Elo↔GLM (blend 35%)** | Con ~20 partidos por selección, el GLM puro sobreajusta; el prior Elo estabiliza |
+| **Shrinkage Elo↔GLM (blend 50%)** | Con ~20 partidos por selección, el GLM puro sobreajusta; el prior Elo estabiliza. Valor optimizado por backtest train/holdout |
 | **RPS como métrica rectora** | Respeta el orden de resultados (una predicción en "empate" cuando ganó el local es menos grave que predecir "derrota del local") |
 | **Amistosos ponderados a 0.45** | Los técnicos rotan y no compiten al 100%; los partidos competitivos aportan mucho más señal |
 | **Valor del XI sobre valor del plantel** | Cuando hay lineup confirmado, la suma real de titulares es más precisa que el total del plantel |
 | **IDs numéricos en la API** | Estables, tipo-seguros y sin ambigüedad de encoding. El texto libre queda en la CLI con fuzzy matching |
 | **Narrativa generada en el backend** | El cliente recibe texto listo para mostrar sin necesidad de interpretar probabilidades |
-| **Monte Carlo en thread pool** | Evita bloquear el event loop de FastAPI en el cómputo CPU-bound de 100k simulaciones |
+| **Cómputo en thread pool** | Evita bloquear el event loop de FastAPI con el cálculo CPU-bound de probabilidades (exacto sobre la matriz de marcadores) |
