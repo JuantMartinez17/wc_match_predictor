@@ -144,7 +144,7 @@ def resolve_team(name: str) -> str:
         sys.exit(1)
 
     print(f"  '{name_stripped}' no es un equipo del Mundial 2026.")
-    print(f"  Usa  python predict.py --list  para ver los 48 equipos.")
+    print("  Usa  python predict.py --list  para ver los 48 equipos.")
     sys.exit(1)
 
 
@@ -302,7 +302,17 @@ def _venue_label(neutral: bool, home_team: str | None, team_a: str, team_b: str)
 
 
 def _fetch_squad_values(team: str) -> dict[str, float]:
-    """Intenta obtener valores reales de plantilla desde SofaScore. Silencia errores."""
+    """
+    Carga ratings FIFA-based (fuente primaria, sin dependencias externas).
+    SofaScore como fallback por compatibilidad (actualmente HTTP 403).
+    """
+    try:
+        from data.player_ratings import get_player_ratings
+        ratings = get_player_ratings(team)
+        if ratings:
+            return ratings
+    except Exception:
+        pass
     try:
         from data.players import get_squad_values
         return get_squad_values(team)
@@ -328,7 +338,9 @@ def _derive_absences(
         return None
     try:
         from data.players import derive_absences
-        df = derive_absences(lineup_names, squad_values)
+        # top_n=11: solo flaggea jugadores del top-XI del plantel que no aparecen
+        # en el 11 confirmado — reduce falsos positivos con bench players válidos.
+        df = derive_absences(lineup_names, squad_values, top_n=11)
         return df if len(df) > 0 else None
     except Exception:
         return None
