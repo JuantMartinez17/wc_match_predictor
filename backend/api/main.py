@@ -15,11 +15,25 @@ import asyncio
 import os
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .routers import accuracy, fixture, predict, teams
+
+
+def _load_dotenv() -> None:
+    """Carga .env desde la raíz del proyecto si existe (desarrollo local)."""
+    env_path = Path(__file__).parents[2] / ".env"
+    if not env_path.exists():
+        return
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            key, _, val = line.partition("=")
+            os.environ.setdefault(key.strip(), val.strip())
+
 
 # ---------------------------------------------------------------------------
 # Lifespan — carga del modelo al arrancar (una sola vez)
@@ -167,6 +181,8 @@ app = FastAPI(
     lifespan=lifespan,
     openapi_tags=_TAGS_METADATA,
 )
+
+_load_dotenv()
 
 _raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001")
 _CORS_ORIGINS = [o.strip().rstrip("/") for o in _raw_origins.split(",") if o.strip()]

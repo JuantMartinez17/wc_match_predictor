@@ -271,9 +271,10 @@ async def predict_match(req: PredictRequest, request: Request) -> PredictRespons
     absences_a = _derive_absences(lineup_a, squad_a)
     absences_b = _derive_absences(lineup_b, squad_b)
 
-    # Formación confirmada = se obtuvo y cruzó el 11 inicial real (ver _resolve_xi_value)
-    lineup_confirmed_a = xi_desc_a.startswith("XI confirmado")
-    lineup_confirmed_b = xi_desc_b.startswith("XI confirmado")
+    # Lineup confirmado = se obtuvo el 11 inicial de ESPN, independiente de si
+    # se pudo calcular el valor XI (que requiere squad values de SofaScore).
+    lineup_confirmed_a = lineup_a is not None
+    lineup_confirmed_b = lineup_b is not None
 
     # Predicción (CPU-bound → thread pool)
     def _run_predict():
