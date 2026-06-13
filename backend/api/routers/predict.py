@@ -198,15 +198,18 @@ async def predict_match(req: PredictRequest, request: Request) -> PredictRespons
     3. **Modelo de marcador** — Dixon-Coles (por defecto), Poisson Bivariado o Poisson Simple.
     4. **Probabilidades exactas** — cálculo determinista sobre la matriz conjunta
        de marcadores → probabilidades 1X2 calibradas.
-    5. **Ajustes secundarios** — valor del XI (Transfermarkt), disponibilidad de jugadores
+    5. **Ajustes secundarios** — valor del XI (ratings EA FC/FIFA), disponibilidad de jugadores
        (penaliza ausencias de titulares clave cuando el lineup está confirmado),
        historial directo y factor entrenador.
 
     ### Lineup confirmado
-    Cuando el 11 inicial está disponible en SofaScore (≈1 h antes del pitido),
-    el motor usa el valor real de los titulares y penaliza la ausencia de jugadores
-    clave del top-15 por valor de mercado (probable lesión o suspensión en el contexto
-    del Mundial).
+    Cuando el 11 inicial está disponible en ESPN (≈1 h antes del pitido), el motor usa
+    el valor real de los titulares y penaliza la ausencia de jugadores clave del top-11
+    del plantel por rating (probable lesión o suspensión en el contexto del Mundial).
+
+    En ese caso la respuesta incluye los nombres del 11 inicial en `lineup_a` / `lineup_b`
+    (en el orden publicado por ESPN) y marca `lineup_confirmed_a` / `lineup_confirmed_b`
+    en `true`. Si el lineup no está disponible todavía, ambos campos de nombres son `null`.
 
     ### Errores
     - `422` — ID de equipo inválido, ambos equipos iguales, o body mal formado.
@@ -374,6 +377,8 @@ async def predict_match(req: PredictRequest, request: Request) -> PredictRespons
         squad_desc_b=xi_desc_b,
         lineup_confirmed_a=lineup_confirmed_a,
         lineup_confirmed_b=lineup_confirmed_b,
+        lineup_a=lineup_a,
+        lineup_b=lineup_b,
         narrative=narrative,
         is_knockout=req.knockout,
         p_penalties=p_penalties,

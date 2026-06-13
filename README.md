@@ -299,6 +299,12 @@ Motor de predicción completo para un partido.
   "squad_desc_b": "plantel completo (510M EUR, XI estimado)",
   "lineup_confirmed_a": true,
   "lineup_confirmed_b": false,
+  "lineup_a": [
+    "Emiliano Martínez", "Nahuel Molina", "Cristian Romero", "Lisandro Martínez",
+    "Nicolás Tagliafico", "Rodrigo De Paul", "Enzo Fernández", "Alexis Mac Allister",
+    "Lionel Messi", "Julián Álvarez", "Ángel Di María"
+  ],
+  "lineup_b": null,
 
   "narrative": "Argentina tiene una leve ventaja, pero el partido está abierto. Se anticipan entre 2 y 3 goles en total. El marcador más probable es 1-0 a favor de Argentina (11% de chances).",
 
@@ -329,7 +335,8 @@ Motor de predicción completo para un partido.
 | `home_team_id` | `integer \| null` | ID del equipo local; `null` = cancha neutral |
 | `venue_label` | `string` | Texto listo para mostrar |
 | `squad_desc_a/b` | `string` | Fuente de datos de plantilla usada |
-| `lineup_confirmed_a/b` | `boolean` | `true` si el XI inicial fue confirmado por SofaScore |
+| `lineup_confirmed_a/b` | `boolean` | `true` si el XI inicial fue confirmado por ESPN |
+| `lineup_a/b` | `array<string> \| null` | Nombres del 11 inicial confirmado (orden de ESPN). `null` si no está disponible aún |
 | `narrative` | `string` | Resumen en español sin jerga estadística |
 | `p_penalties` | `float \| null` | Prob. de llegar a penales (solo knockout) |
 | `p_advance_a/b` | `float \| null` | Prob. de clasificar incluyendo prórroga y penales |
@@ -340,7 +347,7 @@ Motor de predicción completo para un partido.
 |---|---|
 | Primera predicción tras arrancar | 30–60 s (carga del modelo) |
 | Predicciones siguientes | 1–4 s (Monte Carlo 100k iter.) |
-| Con consulta de lineup a SofaScore | +1–2 s adicionales |
+| Con consulta de lineup a ESPN | +1–2 s adicionales |
 
 ---
 
