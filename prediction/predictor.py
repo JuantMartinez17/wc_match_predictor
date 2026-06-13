@@ -23,23 +23,22 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-from config import Config, DEFAULT_CONFIG, DixonColesConfig
+from config import DEFAULT_CONFIG, Config, DixonColesConfig
 from data.loader import validate_matches, validate_metadata
+from features.availability import availability_score, describe_absences
+from features.context import (
+    coach_multiplier,
+    head_to_head_adjustment,
+    squad_value_multiplier,
+)
 from features.decay import combined_weights
 from features.elo import compute_elo_history, elo_trend
 from features.strength import StrengthModel
-from features.availability import availability_score, describe_absences
-from features.context import (
-    squad_value_multiplier,
-    coach_multiplier,
-    head_to_head_adjustment,
-)
 from models.base import ScoreModel, outcome_probabilities, top_scorelines
 from models.bivariate_poisson import BivariatePoissonModel
 from models.dixon_coles import DixonColesModel
 from models.poisson_simple import SimplePoissonModel
-from simulation.montecarlo import simulate, exact_outcome
-
+from simulation.montecarlo import simulate
 
 _MODELS = {
     "dixon_coles": "dixon_coles",
@@ -57,10 +56,13 @@ class _WindowArtifacts:
 
     Dependen únicamente de la fecha de referencia (no de los equipos), por lo
     que se cachean por día: el fit del GLM es el costo dominante por predicción.
+
+    Solo se retiene lo necesario para predecir: el modelo de fuerza ya ajustado
+    y el rho de Dixon-Coles ya estimado. No se guardan `train`/`weights` (la
+    ventana de partidos): solo harían falta para estimar rho, que ya viene hecho.
+    Evitarlos ahorra ~15 MB con la caché de ventanas llena.
     """
 
-    train: pd.DataFrame
-    weights: np.ndarray
     strength: StrengthModel
     rho: float | None  # rho de Dixon-Coles estimado en esta ventana; None si no se estimó
 
@@ -110,14 +112,20 @@ class MatchPredictor:
         matches: pd.DataFrame,
         metadata: pd.DataFrame | None = None,
         config: Config = DEFAULT_CONFIG,
+        elo_state: tuple[dict[str, float], pd.DataFrame] | None = None,
     ) -> None:
         self.cfg = config
         self.matches = validate_matches(matches)
         self.metadata = validate_metadata(metadata) if metadata is not None else None
-        # Elo histórico (una vez) sobre TODO el historial disponible.
-        self.ratings, self.elo_timeline = compute_elo_history(
-            self.matches, self.cfg.elo, self.cfg.importance
-        )
+        # Elo histórico. Normalmente se computa una vez sobre todo el historial;
+        # en backtests walk-forward se puede inyectar un estado ya avanzado a la
+        # fecha (ratings as-of-fecha + timeline) para no recomputarlo por fecha.
+        if elo_state is not None:
+            self.ratings, self.elo_timeline = elo_state
+        else:
+            self.ratings, self.elo_timeline = compute_elo_history(
+                self.matches, self.cfg.elo, self.cfg.importance
+            )
         self._last_matrix = None
         self._last_rho: float = self.cfg.dixon_coles.rho
         # Caché de artefactos de ventana por fecha (asume self.matches inmutable).
@@ -128,23 +136,16 @@ class MatchPredictor:
     def _build_model(
         self,
         name: str,
-        train: pd.DataFrame | None = None,
-        weights: np.ndarray | None = None,
-        strength: "StrengthModel | None" = None,
         rho: float | None = None,
     ) -> ScoreModel:
+        """Construye el modelo de marcador. `rho` ya estimado en la ventana."""
         if name == "dixon_coles":
             dc_cfg = self.cfg.dixon_coles
-            if dc_cfg.estimate_rho:
-                if rho is None and strength is not None and train is not None and weights is not None:
-                    rho = strength.estimate_dixon_coles_rho(
-                        train, weights, bounds=dc_cfg.rho_bounds, default=dc_cfg.rho
-                    )
-                if rho is not None:
-                    # DixonColesConfig es frozen -> instancia nueva con rho estimado.
-                    dc_cfg = DixonColesConfig(
-                        rho=rho, estimate_rho=False, rho_bounds=dc_cfg.rho_bounds
-                    )
+            if dc_cfg.estimate_rho and rho is not None:
+                # DixonColesConfig es frozen -> instancia nueva con rho estimado.
+                dc_cfg = DixonColesConfig(
+                    rho=rho, estimate_rho=False, rho_bounds=dc_cfg.rho_bounds
+                )
             self._last_rho = dc_cfg.rho
             return DixonColesModel(dc_cfg)
         if name == "bivariate_poisson":
@@ -187,7 +188,7 @@ class MatchPredictor:
                     bounds=self.cfg.dixon_coles.rho_bounds,
                     default=self.cfg.dixon_coles.rho,
                 )
-            art = _WindowArtifacts(train=train, weights=weights, strength=strength, rho=rho)
+            art = _WindowArtifacts(strength=strength, rho=rho)
             self._window_cache[key] = art
             while len(self._window_cache) > _WINDOW_CACHE_MAX:
                 self._window_cache.popitem(last=False)
@@ -216,7 +217,7 @@ class MatchPredictor:
         partido. Reutilizado por `predict` (resultado a 90') y `predict_knockout`.
         """
         art = self._window_artifacts(ref)
-        train, weights, strength = art.train, art.weights, art.strength
+        strength = art.strength
         lam_a, lam_b = strength.expected_goals(team_a, team_b, self.ratings, neutral, home_team)
         base_la, base_lb = lam_a, lam_b
 
@@ -229,7 +230,7 @@ class MatchPredictor:
         m_val_a = m_val_b = 1.0
         m_coach_a = m_coach_b = 1.0
         # squad_value_a/b override: valor real del 11 inicial (o plantilla real).
-        # Si no se provee, se usa el valor de metadata (sintético por defecto).
+        # Si no se provee, se usa el valor de metadata.
         _va = squad_value_a
         _vb = squad_value_b
         if _va is None and self.metadata is not None and team_a in self.metadata.index:
@@ -238,8 +239,18 @@ class MatchPredictor:
             _vb = float(self.metadata.loc[team_b, "squad_value_m"])
         if _va is not None and _vb is not None:
             m_val_a, m_val_b = squad_value_multiplier(_va, _vb, sec)
+        # Factor entrenador: solo si la metadata trae datos del DT para ambos
+        # equipos. Con metadata real (ratings FIFA) no hay columnas de DT, así
+        # que coach_multiplier devuelve (1.0, 1.0) y el factor queda neutro.
+        if (
+            self.metadata is not None
+            and team_a in self.metadata.index
+            and team_b in self.metadata.index
+        ):
             m_coach_a, m_coach_b = coach_multiplier(
-                self.metadata.loc[team_a].to_dict(), self.metadata.loc[team_b].to_dict(), sec
+                self.metadata.loc[team_a].to_dict(),
+                self.metadata.loc[team_b].to_dict(),
+                sec,
             )
         lam_a *= m_val_a * m_coach_a
         lam_b *= m_val_b * m_coach_b
@@ -248,12 +259,22 @@ class MatchPredictor:
         lam_a *= m_h2h_a
         lam_b *= m_h2h_b
 
+        # Factor de forma: tendencia Elo reciente relativa. Desactivado salvo
+        # form_sensitivity>0 (se valida por backtest; ver config).
+        m_form_a = m_form_b = 1.0
+        if sec.form_sensitivity > 0:
+            trend_a = elo_trend(self.elo_timeline, team_a, ref)
+            trend_b = elo_trend(self.elo_timeline, team_b, ref)
+            form_adj = sec.form_sensitivity * np.tanh((trend_a - trend_b) / 150.0)
+            m_form_a = float(np.exp(form_adj))
+            m_form_b = float(np.exp(-form_adj))
+        lam_a *= m_form_a
+        lam_b *= m_form_b
+
         lam_a = max(lam_a, 0.05)
         lam_b = max(lam_b, 0.05)
 
-        score_model = self._build_model(
-            model, train=train, weights=weights, strength=strength, rho=art.rho
-        )
+        score_model = self._build_model(model, rho=art.rho)
         matrix = score_model.score_matrix(lam_a, lam_b, self.cfg.simulation.max_goals)
         self._last_matrix = matrix
 
@@ -261,6 +282,7 @@ class MatchPredictor:
             "lam_a": lam_a, "lam_b": lam_b, "base_la": base_la, "base_lb": base_lb,
             "avail_a": avail_a, "avail_b": avail_b,
             "m_val_a": m_val_a, "m_coach_a": m_coach_a, "m_h2h_a": m_h2h_a,
+            "m_form_a": m_form_a,
             "strength": strength, "score_model": score_model, "matrix": matrix,
         }
 
@@ -312,7 +334,8 @@ class MatchPredictor:
         explanation = self._explain(
             team_a, team_b, ref, core["base_la"], core["base_lb"], lam_a, lam_b,
             core["avail_a"], core["avail_b"], absences_a, absences_b,
-            core["m_val_a"], core["m_coach_a"], core["m_h2h_a"], core["strength"],
+            core["m_val_a"], core["m_coach_a"], core["m_h2h_a"], core["m_form_a"],
+            core["strength"],
         )
 
         return Prediction(
@@ -393,7 +416,8 @@ class MatchPredictor:
             team_a, team_b, ref, core["base_la"], core["base_lb"],
             core["lam_a"], core["lam_b"], core["avail_a"], core["avail_b"],
             absences_a, absences_b,
-            core["m_val_a"], core["m_coach_a"], core["m_h2h_a"], core["strength"],
+            core["m_val_a"], core["m_coach_a"], core["m_h2h_a"], core["m_form_a"],
+            core["strength"],
         )
         prediction = Prediction(
             team_a=team_a,
@@ -423,7 +447,7 @@ class MatchPredictor:
     # -------------------------------------------------------------- explain
     def _explain(
         self, team_a, team_b, ref, base_la, base_lb, lam_a, lam_b,
-        avail_a, avail_b, abs_a, abs_b, m_val_a, m_coach_a, m_h2h_a, strength,
+        avail_a, avail_b, abs_a, abs_b, m_val_a, m_coach_a, m_h2h_a, m_form_a, strength,
     ) -> dict:
         """Construye una explicación ordenada por magnitud de efecto."""
         ra = self.ratings.get(team_a, self.cfg.elo.base_rating)
@@ -437,6 +461,7 @@ class MatchPredictor:
             "Disponibilidad": abs(np.log((1 - self.cfg.secondary.availability_sensitivity * (1 - avail_a))
                                          / (1 - self.cfg.secondary.availability_sensitivity * (1 - avail_b)))),
             "Valor de plantilla": abs(np.log(m_val_a ** 2)),
+            "Forma reciente": abs(np.log(m_form_a ** 2)),
             "Entrenador": abs(np.log(m_coach_a ** 2)),
             "Historial directo": abs(np.log(m_h2h_a ** 2)),
         }

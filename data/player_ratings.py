@@ -22,6 +22,8 @@ import math
 from functools import lru_cache
 from pathlib import Path
 
+import pandas as pd
+
 _RATINGS_PATH = Path(__file__).parent / "wc2026_ratings.json"
 
 _MIN_VALUE = 0.5  # M EUR — suelo para jugadores sin rating
@@ -50,3 +52,31 @@ def get_player_ratings(team_canonical: str) -> dict[str, float]:
         for name, rating in team_data.items()
         if name != "_meta"
     }
+
+
+def build_real_metadata() -> pd.DataFrame:
+    """
+    Metadata por equipo derivada de los ratings FIFA (no aleatoria).
+
+    Columnas: `team`, `squad_value_m` (suma del plantel registrado) y
+    `starting_xi_value_m` (suma del top-11 por valor). Reemplaza a
+    `generate_team_metadata`, que producía valores y datos de DT aleatorios:
+    el factor entrenador queda neutralizado (sin columnas de DT) y el valor de
+    plantilla pasa a reflejar la calidad real de cada selección.
+    """
+    all_ratings = _load_ratings()
+    rows = []
+    for team in all_ratings:
+        if team == "_meta":
+            continue
+        values = sorted(get_player_ratings(team).values(), reverse=True)
+        if not values:
+            continue
+        rows.append(
+            {
+                "team": team,
+                "squad_value_m": round(sum(values), 1),
+                "starting_xi_value_m": round(sum(values[:11]), 1),
+            }
+        )
+    return pd.DataFrame(rows)

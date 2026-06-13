@@ -36,6 +36,78 @@ def _goal_difference_multiplier(goal_diff: int) -> float:
     return (11.0 + g) / 8.0
 
 
+class EloTracker:
+    """
+    Estado Elo que se actualiza partido a partido de forma incremental.
+
+    Pensado para backtests walk-forward: en lugar de recomputar todo el
+    historial por cada fecha de prueba (O(fechas × partidos)), se avanza el
+    estado en bloques cronológicos compartiendo un único recorrido. Como cada
+    selección juega a lo sumo una vez por día, el orden intra-fecha no afecta los
+    ratings (los updates de una misma fecha involucran equipos disjuntos), así
+    que avanzar por bloques de fechas es equivalente a procesar todo de corrido.
+    """
+
+    def __init__(self, elo_cfg: EloConfig, imp_cfg: MatchImportanceConfig) -> None:
+        self.elo_cfg = elo_cfg
+        self.imp_cfg = imp_cfg
+        self.ratings: dict[str, float] = {}
+        self._timeline_rows: list[dict] = []
+
+    def update(self, matches: pd.DataFrame) -> EloTracker:
+        """Procesa un bloque de partidos en orden cronológico (sort estable)."""
+        if matches is None or len(matches) == 0:
+            return self
+
+        base = self.elo_cfg.base_rating
+        ha_full = self.elo_cfg.home_advantage
+        scale = self.elo_cfg.scale
+        k_base = self.elo_cfg.k_base
+        weights = self.imp_cfg.weights
+        default_w = self.imp_cfg.default
+        ratings = self.ratings
+        rows = self._timeline_rows
+
+        # itertuples es ~10x más rápido que iterrows para este recorrido.
+        ordered = matches.sort_values("date", kind="stable")
+        for m in ordered.itertuples(index=False):
+            home, away = m.home_team, m.away_team
+            ra = ratings.get(home, base)
+            rb = ratings.get(away, base)
+
+            ha = 0.0 if m.neutral else ha_full
+            exp_a = _expected_score(ra + ha, rb, scale)
+
+            gd = int(m.home_goals) - int(m.away_goals)
+            if gd > 0:
+                score_a = 1.0
+            elif gd == 0:
+                score_a = 0.5
+            else:
+                score_a = 0.0
+
+            k = k_base * weights.get(str(m.competition), default_w)
+            k *= _goal_difference_multiplier(gd)
+
+            delta = k * (score_a - exp_a)
+            ratings[home] = ra + delta
+            ratings[away] = rb - delta
+
+            rows.append({"date": m.date, "team": home, "rating": ratings[home]})
+            rows.append({"date": m.date, "team": away, "rating": ratings[away]})
+        return self
+
+    def snapshot_ratings(self) -> dict[str, float]:
+        """Copia del estado actual de ratings (para congelar una fecha)."""
+        return dict(self.ratings)
+
+    def timeline(self) -> pd.DataFrame:
+        """DataFrame (date, team, rating) tras cada partido procesado."""
+        if not self._timeline_rows:
+            return pd.DataFrame(columns=["date", "team", "rating"])
+        return pd.DataFrame(self._timeline_rows)
+
+
 def compute_elo_history(
     matches: pd.DataFrame,
     elo_cfg: EloConfig,
@@ -44,43 +116,17 @@ def compute_elo_history(
     """
     Recorre los partidos cronológicamente y actualiza Elo de cada selección.
 
+    Wrapper de conveniencia sobre `EloTracker` (misma firma y semántica que
+    antes). Para backtests que avanzan por fecha, usar `EloTracker` directamente.
+
     Returns
     -------
     final_ratings : dict[team -> rating]
     timeline : DataFrame con (date, team, rating) tras cada partido, útil para
         calcular tendencia y para depuración.
     """
-    ratings: dict[str, float] = {}
-    timeline_rows = []
-
-    for _, m in matches.sort_values("date").iterrows():
-        home, away = m["home_team"], m["away_team"]
-        ra = ratings.get(home, elo_cfg.base_rating)
-        rb = ratings.get(away, elo_cfg.base_rating)
-
-        ha = 0.0 if m["neutral"] else elo_cfg.home_advantage
-        exp_a = _expected_score(ra + ha, rb, elo_cfg.scale)
-
-        gd = int(m["home_goals"]) - int(m["away_goals"])
-        if gd > 0:
-            score_a = 1.0
-        elif gd == 0:
-            score_a = 0.5
-        else:
-            score_a = 0.0
-
-        k = elo_cfg.k_base * imp_cfg.weights.get(str(m["competition"]), imp_cfg.default)
-        k *= _goal_difference_multiplier(gd)
-
-        delta = k * (score_a - exp_a)
-        ratings[home] = ra + delta
-        ratings[away] = rb - delta
-
-        timeline_rows.append({"date": m["date"], "team": home, "rating": ratings[home]})
-        timeline_rows.append({"date": m["date"], "team": away, "rating": ratings[away]})
-
-    timeline = pd.DataFrame(timeline_rows)
-    return ratings, timeline
+    tracker = EloTracker(elo_cfg, imp_cfg).update(matches)
+    return tracker.ratings, tracker.timeline()
 
 
 def elo_trend(

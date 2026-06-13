@@ -24,13 +24,13 @@ import numpy as np
 
 from config import DEFAULT_CONFIG
 from data.synthetic import (
+    generate_availability,
     generate_match_history,
     generate_team_metadata,
-    generate_availability,
 )
 from prediction.predictor import MatchPredictor
 from simulation.montecarlo import exact_outcome
-from validation.backtest import run_backtest, metrics_table
+from validation.backtest import metrics_table, run_backtest
 from validation.calibration import TemperatureScaler, reliability_curve
 from validation.metrics import evaluate_all
 
@@ -45,13 +45,13 @@ def _load_data() -> tuple:
     """Carga historial de partidos y metadatos según el modo configurado."""
     if USE_REAL_DATA:
         from data.ingest import build_dataset
-        from data.synthetic import generate_team_metadata  # metadatos siguen siendo sintéticos
+        from data.player_ratings import build_real_metadata
 
         print("\n[modo: datos REALES]")
         matches = build_dataset(since_year=2018, force_refresh=FORCE_REFRESH)
-        # Los metadatos de plantilla/entrenador son sintéticos hasta integrar
-        # Transfermarkt u otra fuente estructurada.
-        metadata = generate_team_metadata(seed=11)
+        # Metadata real: valor de plantilla desde ratings FIFA, sin factor DT
+        # aleatorio (coach neutralizado). Antes era generate_team_metadata.
+        metadata = build_real_metadata()
     else:
         print("\n[modo: datos SINTÉTICOS]")
         matches = generate_match_history(n_matches_per_team=30, seed=7)
@@ -77,8 +77,14 @@ def main() -> None:
     # 2) Predicción de un partido -----------------------------------------
     team_a, team_b = "Argentina", "France"
     ref = "2026-06-01"
-    abs_a = generate_availability(team_a, "minor", seed=1)
-    abs_b = generate_availability(team_b, "key_absences", seed=2)
+    if USE_REAL_DATA:
+        # Sin un partido en vivo no hay ausencias reales (vendrían del 11
+        # confirmado vs. ratings); el demo en modo real las omite en lugar de
+        # inventar ausencias sintéticas.
+        abs_a = abs_b = None
+    else:
+        abs_a = generate_availability(team_a, "minor", seed=1)
+        abs_b = generate_availability(team_b, "key_absences", seed=2)
 
     print("\n" + "-" * 64)
     pred = predictor.predict(

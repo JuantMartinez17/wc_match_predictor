@@ -321,7 +321,19 @@ def _fetch_squad_values(team: str) -> dict[str, float]:
 
 
 def _fetch_lineup(team_a: str, team_b: str, ref_date: str) -> dict | None:
-    """Intenta obtener el 11 inicial confirmado desde SofaScore. Silencia errores."""
+    """
+    Intenta obtener el 11 inicial confirmado desde ESPN. Silencia errores.
+
+    Los lineups solo se publican ~1 h antes del partido, así que para fechas a
+    más de 1 día en el futuro se evita la llamada HTTP (ahorra ~300-400 ms por
+    request, que es el grueso de la latencia en cache-miss para el fixture).
+    """
+    try:
+        match_day = date.fromisoformat(ref_date)
+        if match_day > date.today() + timedelta(days=1):
+            return None
+    except (ValueError, TypeError):
+        pass  # fecha no parseable -> intenta el fetch de todas formas
     try:
         from data.lineups import get_lineup
         return get_lineup(team_a, team_b, ref_date)
@@ -383,9 +395,9 @@ def run_prediction(cfg: dict) -> None:
         squad_b_vals: dict = {}
     else:
         from data.ingest import build_dataset
-        from data.synthetic import generate_team_metadata
+        from data.player_ratings import build_real_metadata
         matches = build_dataset(since_year=2018)
-        metadata = generate_team_metadata(seed=11)
+        metadata = build_real_metadata()
 
         # Valores reales de plantilla (SofaScore/Transfermarkt)
         team_a_raw = cfg["team_a"]

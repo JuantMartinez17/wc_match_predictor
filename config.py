@@ -18,8 +18,10 @@ class DecayConfig:
     """Parámetros del decaimiento temporal exponencial."""
 
     # lambda del decaimiento: peso = exp(-lambda_decay * antiguedad_anios).
-    # Con 0.65 un partido de hace 12 meses pesa ~0.52, y uno de hace 24 meses ~0.27.
-    lambda_decay: float = 0.65
+    # Con 0.40 un partido de hace 12 meses pesa ~0.67, y uno de hace 24 meses ~0.45
+    # (olvido más lento -> más datos efectivos, útil con selecciones).
+    # Valor optimizado por backtest train/holdout (scripts/tune_wc.py).
+    lambda_decay: float = 0.40
     # Ventana dura máxima de partidos considerados.
     max_matches: int = 20
     # Ventana dura máxima en meses.
@@ -67,9 +69,14 @@ class StrengthConfig:
     # log(lambda) = (1 - blend)*log(lambda_GLM) + blend*log(lambda_Elo).
     # blend=0.0 -> sólo GLM ; blend=1.0 -> sólo Elo. Actúa como shrinkage ante
     # muestras pequeñas (clave en selecciones, ~20 partidos).
-    elo_prior_blend: float = 0.35
+    # Valor optimizado por backtest train/holdout (scripts/tune_wc.py).
+    elo_prior_blend: float = 0.50
     # Goles esperados de referencia por equipo en partido neutro/promedio.
     league_avg_goals: float = 1.35
+    # Exponente que mapea la superioridad Elo (en [-0.5, 0.5]) a la ventaja
+    # multiplicativa de goles del prior: lambda_Elo = league_avg * exp(exp * sup).
+    # Mayor -> el prior Elo separa más a favoritos/débiles. Optimizado por backtest.
+    elo_supremacy_exponent: float = 2.0
 
 
 @dataclass(frozen=True)
@@ -128,6 +135,10 @@ class SecondaryWeights:
     availability_sensitivity: float = 0.25
     # Sensibilidad del valor de plantilla (variable secundaria).
     squad_value_sensitivity: float = 0.10
+    # Sensibilidad del factor de forma (tendencia Elo reciente). 0.0 = desactivado.
+    # adj = sens * tanh((trend_a - trend_b) / 150). Activado en 0.10: el backtest
+    # train/holdout (scripts/tune_wc.py) mostró mejora consistente al incorporarlo.
+    form_sensitivity: float = 0.10
     # Sensibilidad del factor entrenador (muy baja: señal débil y redundante).
     coach_sensitivity: float = 0.04
     # Peso del historial directo como pequeño ajuste del prior (muy bajo).
