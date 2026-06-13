@@ -322,6 +322,38 @@ class PredictResponse(BaseModel):
         description="`true` si se obtuvo el 11 inicial confirmado del equipo B.",
         examples=[False],
     )
+    lineup_a: list[str] | None = Field(
+        default=None,
+        description=(
+            "Nombres del 11 inicial confirmado del equipo A (desde ESPN), en el orden "
+            "publicado. `null` cuando el lineup todavía no está disponible (se publica "
+            "≈1 h antes del partido) o el partido es a más de 1 día. Presente ⇔ "
+            "`lineup_confirmed_a` es `true`."
+        ),
+        examples=[
+            [
+                "Emiliano Martínez",
+                "Nahuel Molina",
+                "Cristian Romero",
+                "Lisandro Martínez",
+                "Nicolás Tagliafico",
+                "Rodrigo De Paul",
+                "Enzo Fernández",
+                "Alexis Mac Allister",
+                "Lionel Messi",
+                "Julián Álvarez",
+                "Ángel Di María",
+            ]
+        ],
+    )
+    lineup_b: list[str] | None = Field(
+        default=None,
+        description=(
+            "Nombres del 11 inicial confirmado del equipo B (desde ESPN). `null` si no "
+            "está disponible. Presente ⇔ `lineup_confirmed_b` es `true`."
+        ),
+        examples=[None],
+    )
 
     # ---- Narrativa ----
     narrative: str = Field(
