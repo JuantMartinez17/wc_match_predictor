@@ -184,12 +184,15 @@ def load_fixture(days: int = 10) -> list[dict]:
 
 @st.cache_resource(show_spinner=False)
 def load_predictor():
-    from data.ingest import build_dataset
-    from data.synthetic import generate_team_metadata
-    from prediction.predictor import MatchPredictor
     from config import DEFAULT_CONFIG
+    from data.ingest import build_dataset
+    from data.player_ratings import build_real_metadata
+    from prediction.predictor import MatchPredictor
+
     matches = build_dataset(since_year=2018)
-    metadata = generate_team_metadata()
+    # Metadata real (ratings FIFA): valor de plantilla real y sin factor DT
+    # aleatorio. Antes usaba generate_team_metadata (ruido sintético).
+    metadata = build_real_metadata()
     return MatchPredictor(matches, metadata=metadata, config=DEFAULT_CONFIG)
 
 
@@ -223,7 +226,7 @@ def build_narrative(
 
     # Sede
     if "sede" in venue_label.lower():
-        partes.append(f"Además, juega con el apoyo de su hinchada.")
+        partes.append("Además, juega con el apoyo de su hinchada.")
 
     # Goles esperados
     total = xg_a + xg_b
@@ -285,7 +288,13 @@ def show_prediction(match: dict) -> None:
     )
 
     # Valores de plantilla y lineup
-    from predict import detect_venue, _fetch_squad_values, _fetch_lineup, _resolve_xi_value
+    from predict import (
+        _derive_absences,
+        _fetch_lineup,
+        _fetch_squad_values,
+        _resolve_xi_value,
+        detect_venue,
+    )
 
     neutral, home_team = detect_venue(team_a, team_b)
     venue_label = (
@@ -306,6 +315,11 @@ def show_prediction(match: dict) -> None:
     xi_val_a, xi_desc_a = _resolve_xi_value(team_a, lineup_a, squad_a)
     xi_val_b, xi_desc_b = _resolve_xi_value(team_b, lineup_b, squad_b)
 
+    # Ausencias reales: titulares clave del plantel fuera del 11 confirmado
+    # (probable lesión/suspensión). Penaliza el lambda del equipo afectado.
+    absences_a = _derive_absences(lineup_a, squad_a)
+    absences_b = _derive_absences(lineup_b, squad_b)
+
     # Predicción
     predictor = load_predictor()
     with st.spinner("Calculando predicción..."):
@@ -313,6 +327,7 @@ def show_prediction(match: dict) -> None:
             team_a, team_b, ref_date,
             neutral=neutral, home_team=home_team,
             squad_value_a=xi_val_a, squad_value_b=xi_val_b,
+            absences_a=absences_a, absences_b=absences_b,
         )
 
     p_a = pred.p_a

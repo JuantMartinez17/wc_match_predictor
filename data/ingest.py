@@ -161,6 +161,25 @@ def _age_label(path: Path) -> str:
     return f"{age_h:.0f}h de antigüedad"
 
 
+# Columnas que realmente usa build_dataset; el CSV fuente trae además city/country
+# (~48k filas) que nunca se usan. Leer solo estas recorta el pico de memoria.
+_USECOLS = [
+    "date", "home_team", "away_team",
+    "home_score", "away_score", "tournament", "neutral",
+]
+
+
+def _read_results_csv(path: Path) -> pd.DataFrame:
+    """Lee el CSV de resultados solo con las columnas necesarias.
+
+    Si el esquema no coincide (columna faltante), cae a una lectura completa.
+    """
+    try:
+        return pd.read_csv(path, parse_dates=["date"], usecols=_USECOLS)
+    except (ValueError, KeyError):
+        return pd.read_csv(path, parse_dates=["date"])
+
+
 # ---------------------------------------------------------------------------
 # Descarga
 # ---------------------------------------------------------------------------
@@ -187,7 +206,7 @@ def download_results(
 
     if not force_refresh and _is_fresh(cached):
         print(f"  [cache] Usando datos locales ({_age_label(cached)})")
-        return pd.read_csv(cached, parse_dates=["date"])
+        return _read_results_csv(cached)
 
     print("  [descarga] Conectando a GitHub... ", end="", flush=True)
     try:
@@ -203,7 +222,7 @@ def download_results(
                 f"URL: {_RESULTS_URL}"
             ) from exc
 
-    return pd.read_csv(cached, parse_dates=["date"])
+    return _read_results_csv(cached)
 
 
 # ---------------------------------------------------------------------------

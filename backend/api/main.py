@@ -39,9 +39,11 @@ def _load_dotenv() -> None:
 # Lifespan — carga del modelo al arrancar (una sola vez)
 # ---------------------------------------------------------------------------
 
-# 8 workers: cada request de predicción ocupa hasta 3 transitoriamente (fetches
-# externos en paralelo) y el backtest de accuracy ocupa uno al arrancar.
-_executor = ThreadPoolExecutor(max_workers=8, thread_name_prefix="predictor")
+# 4 workers: con los squad values movidos a cómputo inline, cada request de
+# predicción ocupa a lo sumo 2 threads transitorios (lineup HTTP + predicción
+# CPU-bound) y el backtest de accuracy ocupa uno al arrancar. 4 da margen sin
+# mantener stacks de thread de más en el free tier.
+_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="predictor")
 
 
 @asynccontextmanager
@@ -51,11 +53,13 @@ async def lifespan(app: FastAPI):
     def _load_predictor():
         from config import DEFAULT_CONFIG
         from data.ingest import build_dataset
-        from data.synthetic import generate_team_metadata
+        from data.player_ratings import build_real_metadata
         from prediction.predictor import MatchPredictor
 
         matches = build_dataset(since_year=2018)
-        metadata = generate_team_metadata(seed=11)
+        # Metadata real (ratings FIFA): valor de plantilla real y sin factor DT
+        # aleatorio. Reemplaza a generate_team_metadata (que era ruido).
+        metadata = build_real_metadata()
         return MatchPredictor(matches, metadata=metadata, config=DEFAULT_CONFIG)
 
     print("Cargando modelo predictor...")
@@ -66,28 +70,28 @@ async def lifespan(app: FastAPI):
     app.state.executor = _executor
     app.state.accuracy_metrics = None  # se llenará al terminar el backtest
 
-    # Pre-calienta el caché de ventana (fit del GLM) para hoy y mañana, así el
-    # primer request no paga el ajuste. Fire-and-forget.
+    # Pre-calienta el caché de ventana (fit del GLM) para los próximos 8 días,
+    # así el primer request de cualquier partido del fixture cercano no paga el
+    # ajuste (~200 ms). Las ventanas comparten fecha entre partidos del mismo
+    # día, por lo que 8 fits cubren todo el fixture inmediato. Fire-and-forget.
     def _warm_windows():
         from datetime import date, timedelta
 
-        for d in (date.today(), date.today() + timedelta(days=1)):
-            predictor.warm_window(str(d))
+        today = date.today()
+        for offset in range(8):  # hoy .. hoy+7
+            predictor.warm_window(str(today + timedelta(days=offset)))
 
     loop.run_in_executor(_executor, _warm_windows)
 
     # Backtest de accuracy en background — no bloquea al predictor principal
     async def _bg_accuracy() -> None:
         from config import DEFAULT_CONFIG
-        from data.synthetic import generate_team_metadata
 
         from .routers.accuracy import (
             compute_wc_backtest,
             load_accuracy_cache,
             save_accuracy_cache,
         )
-
-        metadata = generate_team_metadata(seed=11)
 
         cached = await loop.run_in_executor(_executor, load_accuracy_cache)
         if cached is not None:
@@ -96,9 +100,11 @@ async def lifespan(app: FastAPI):
             return
 
         print("  [accuracy] Calculando métricas de backtesting...")
+        # Sin metadata: los ratings FIFA 2025 son anacrónicos para WC 2018/2022.
+        # El backtest evalúa el núcleo del motor (Elo + GLM + marcador) sin ruido.
         metrics = await loop.run_in_executor(
             _executor,
-            lambda: compute_wc_backtest(metadata, DEFAULT_CONFIG),
+            lambda: compute_wc_backtest(None, DEFAULT_CONFIG),
         )
         await loop.run_in_executor(_executor, lambda: save_accuracy_cache(metrics))
         app.state.accuracy_metrics = metrics

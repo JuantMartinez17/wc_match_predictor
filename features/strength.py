@@ -26,7 +26,7 @@ import pandas as pd
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
-from config import StrengthConfig, EloConfig
+from config import EloConfig, StrengthConfig
 from features.elo import _expected_score
 
 
@@ -42,7 +42,7 @@ class StrengthModel:
         self._fallback = False  # True si el GLM no pudo ajustarse
 
     # ------------------------------------------------------------------ fit
-    def fit(self, matches: pd.DataFrame, weights: np.ndarray) -> "StrengthModel":
+    def fit(self, matches: pd.DataFrame, weights: np.ndarray) -> StrengthModel:
         """
         Ajusta el GLM Poisson ponderado sobre la ventana reciente de partidos.
 
@@ -129,7 +129,8 @@ class StrengthModel:
         ha = self.elo_cfg.home_advantage * is_home
         exp = _expected_score(rating_for + ha, rating_against, self.elo_cfg.scale)
         supremacy = exp - 0.5  # en [-0.5, 0.5]
-        return float(self.cfg.league_avg_goals * np.exp(1.6 * supremacy))
+        k = self.cfg.elo_supremacy_exponent
+        return float(self.cfg.league_avg_goals * np.exp(k * supremacy))
 
     def expected_goals(
         self,

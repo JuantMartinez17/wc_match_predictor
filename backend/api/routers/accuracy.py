@@ -74,76 +74,110 @@ def _outcome(home_goals: int, away_goals: int) -> int:
     return 2
 
 
-def compute_wc_backtest(metadata, config) -> list[dict]:
+def compute_wc_backtest(metadata, config, test_years=(2018, 2022)) -> list[dict]:
     """
-    Walk-forward backtest sobre los partidos del Mundial 2018 y 2022.
+    Walk-forward backtest sobre los partidos del Mundial en `test_years`.
     Para cada partido se entrena SOLO con datos anteriores a su fecha.
+
+    Optimización: en lugar de recomputar el Elo histórico por cada partido
+    (O(fechas × partidos)), se avanza un único `EloTracker` incremental por
+    fecha y se inyecta el estado as-of-fecha en el predictor. Equivalente al
+    enfoque por-partido (mismo train y mismo Elo), pero ~10x más rápido.
     """
     import numpy as np
+    import pandas as pd
 
     from data.ingest import build_dataset
+    from features.elo import EloTracker
     from prediction.predictor import MatchPredictor
     from validation.metrics import evaluate_all
 
     print("  [accuracy] Cargando datos para backtest (desde 2006)...")
     all_matches = build_dataset(since_year=2006)
+    all_sorted = all_matches.sort_values("date", kind="stable").reset_index(drop=True)
+    dates_arr = all_sorted["date"].to_numpy()
 
     test = (
-        all_matches[
-            (all_matches["competition"] == "world_cup")
-            & (all_matches["date"].dt.year.isin([2018, 2022]))
+        all_sorted[
+            (all_sorted["competition"] == "world_cup")
+            & (all_sorted["date"].dt.year.isin(test_years))
         ]
-        .sort_values("date")
+        .sort_values("date", kind="stable")
         .reset_index(drop=True)
     )
 
-    print(f"  [accuracy] {len(test)} partidos de prueba (WC 2018+2022)")
+    print(
+        f"  [accuracy] {len(test)} partidos de prueba (WC {'+'.join(map(str, test_years))})"
+    )
 
     probs: dict[str, list[list[float]]] = {m: [] for m in _MODELS_ORDER}
     outcomes: list[int] = []
 
-    for idx, row in test.iterrows():
-        ref = str(row["date"].date())
-        train = all_matches[all_matches["date"] < row["date"]]
+    # El timeline solo afecta las probabilidades si el factor de forma está
+    # activo; si no, se omite su construcción (ahorra tiempo en el arranque).
+    need_timeline = config.secondary.form_sensitivity > 0
+    empty_timeline = pd.DataFrame(columns=["date", "team", "rating"])
+
+    tracker = EloTracker(config.elo, config.importance)
+    cursor = 0
+    test_dates = sorted(test["date"].unique())
+    processed = 0
+
+    for d in test_dates:
+        ref_ts = pd.Timestamp(d)
+        # Avanza el Elo con todos los partidos estrictamente anteriores a la fecha.
+        j = int(np.searchsorted(dates_arr, np.datetime64(ref_ts), side="left"))
+        if j > cursor:
+            tracker.update(all_sorted.iloc[cursor:j])
+            cursor = j
+
+        train = all_sorted.iloc[:j]
         if len(train) < 30:
             continue
 
-        a, b = row["home_team"], row["away_team"]
-        neutral = bool(row["neutral"])
-        home_team = None if neutral else a
-
+        timeline = tracker.timeline() if need_timeline else empty_timeline
+        elo_state = (tracker.snapshot_ratings(), timeline)
         try:
-            predictor = MatchPredictor(train, metadata=metadata, config=config)
+            predictor = MatchPredictor(
+                train, metadata=metadata, config=config, elo_state=elo_state
+            )
         except Exception:
             continue
 
-        row_probs: dict[str, list[float]] = {}
-        ok = True
-        for m in _MODELS_ORDER:
-            try:
-                pred = predictor.predict(
-                    a,
-                    b,
-                    ref,
-                    neutral=neutral,
-                    home_team=home_team,
-                    model=m,
-                    use_simulation=False,
-                )
-                row_probs[m] = [pred.p_a, pred.p_draw, pred.p_b]
-            except Exception:
-                ok = False
-                break
+        ref = str(ref_ts.date())
+        day_matches = test[test["date"] == ref_ts]
+        for row in day_matches.itertuples(index=False):
+            a, b = row.home_team, row.away_team
+            neutral = bool(row.neutral)
+            home_team = None if neutral else a
 
-        if not ok:
-            continue
+            row_probs: dict[str, list[float]] = {}
+            ok = True
+            for m in _MODELS_ORDER:
+                try:
+                    pred = predictor.predict(
+                        a,
+                        b,
+                        ref,
+                        neutral=neutral,
+                        home_team=home_team,
+                        model=m,
+                        use_simulation=False,
+                    )
+                    row_probs[m] = [pred.p_a, pred.p_draw, pred.p_b]
+                except Exception:
+                    ok = False
+                    break
 
-        outcomes.append(_outcome(int(row["home_goals"]), int(row["away_goals"])))
-        for m in _MODELS_ORDER:
-            probs[m].append(row_probs[m])
+            if not ok:
+                continue
 
-        if (idx + 1) % 20 == 0:
-            print(f"  [accuracy] {idx + 1}/{len(test)} partidos procesados")
+            outcomes.append(_outcome(int(row.home_goals), int(row.away_goals)))
+            for m in _MODELS_ORDER:
+                probs[m].append(row_probs[m])
+            processed += 1
+            if processed % 20 == 0:
+                print(f"  [accuracy] {processed}/{len(test)} partidos procesados")
 
     outcomes_arr = np.array(outcomes, dtype=int)
     result: list[dict] = []

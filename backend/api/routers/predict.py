@@ -13,7 +13,7 @@ import asyncio
 import threading
 import time
 from collections import OrderedDict
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -29,7 +29,10 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 
 _RESPONSE_CACHE: OrderedDict[tuple, tuple[float, PredictResponse]] = OrderedDict()
+# TTL corto para partidos de hoy/mañana: el lineup puede confirmarse (~1 h antes)
+# y cambiar la predicción. TTL largo para futuros: nada cambia hasta esa ventana.
 _RESPONSE_TTL = 120.0  # segundos
+_RESPONSE_TTL_FAR = 1800.0  # segundos (partidos a >1 día)
 _RESPONSE_MAX = 256
 _response_lock = threading.Lock()
 
@@ -47,9 +50,9 @@ def _cache_get(key: tuple) -> PredictResponse | None:
         return resp
 
 
-def _cache_put(key: tuple, resp: PredictResponse) -> None:
+def _cache_put(key: tuple, resp: PredictResponse, ttl: float = _RESPONSE_TTL) -> None:
     with _response_lock:
-        _RESPONSE_CACHE[key] = (time.monotonic() + _RESPONSE_TTL, resp)
+        _RESPONSE_CACHE[key] = (time.monotonic() + ttl, resp)
         _RESPONSE_CACHE.move_to_end(key)
         while len(_RESPONSE_CACHE) > _RESPONSE_MAX:
             _RESPONSE_CACHE.popitem(last=False)
@@ -251,14 +254,16 @@ async def predict_match(req: PredictRequest, request: Request) -> PredictRespons
         else "Cancha neutral"
     )
 
-    # Fetch squad values + lineup en thread pool, EN PARALELO: la latencia
-    # pasa de la suma de las tres llamadas externas al máximo de ellas.
+    # Squad values: lookup local cacheado (lru_cache sobre JSON de ratings),
+    # del orden de microsegundos — no justifica el costo de despachar a un
+    # thread. Solo el lineup (HTTP a ESPN) va al pool; para fechas lejanas
+    # _fetch_lineup corta sin red (ver predict.py), dejando el request en CPU.
     from predict import _fetch_lineup, _fetch_squad_values
 
-    squad_a, squad_b, lineup = await asyncio.gather(
-        loop.run_in_executor(executor, _fetch_squad_values, team_a),
-        loop.run_in_executor(executor, _fetch_squad_values, team_b),
-        loop.run_in_executor(executor, _fetch_lineup, team_a, team_b, ref_date),
+    squad_a = _fetch_squad_values(team_a)
+    squad_b = _fetch_squad_values(team_b)
+    lineup = await loop.run_in_executor(
+        executor, _fetch_lineup, team_a, team_b, ref_date
     )
 
     lineup_a = lineup["team_a"] if lineup else None
@@ -375,5 +380,11 @@ async def predict_match(req: PredictRequest, request: Request) -> PredictRespons
         p_advance_a=p_advance_a,
         p_advance_b=p_advance_b,
     )
-    _cache_put(cache_key, response)
+    # TTL adaptativo: corto si el partido es hoy/mañana (el lineup aún puede
+    # confirmarse), largo si es futuro (la predicción no cambiará por un tiempo).
+    try:
+        far = date.fromisoformat(ref_date) > date.today() + timedelta(days=1)
+    except (ValueError, TypeError):
+        far = False
+    _cache_put(cache_key, response, ttl=_RESPONSE_TTL_FAR if far else _RESPONSE_TTL)
     return response
