@@ -314,7 +314,7 @@ class PredictResponse(BaseModel):
     )
     lineup_confirmed_a: bool = Field(
         default=False,
-        description="`true` si se obtuvo el 11 inicial confirmado del equipo A desde SofaScore.",
+        description="`true` si se obtuvo el 11 inicial confirmado del equipo A desde ESPN.",
         examples=[True],
     )
     lineup_confirmed_b: bool = Field(

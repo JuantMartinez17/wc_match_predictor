@@ -1,15 +1,14 @@
 """
 data/lineups.py
 ===============
-11 inicial confirmado del Mundial 2026 vía ESPN API.
+11 inicial confirmado del Mundial 2026 vía ESPN API pública (sin autenticación).
 
 Flujo:
-  1. Busca el event_id en el scoreboard de ESPN por fecha y equipos (caché 1 h).
-  2. Descarga el summary del evento que incluye el roster completo (caché 1 h).
-  3. Filtra starter=true para extraer los 11 titulares de cada equipo.
+  1. Busca el event_id en el scoreboard de ESPN por fecha y equipos (caché 24 h).
+  2. Descarga el summary del evento que incluye el roster completo.
+     - Si el lineup no está confirmado: caché 10 min (re-chequea frecuente).
+     - Si está confirmado: caché 12 h (no necesita re-fetch).
 
-La misma API ya se usa para el fixture, por lo que no hay riesgo de bloqueo
-por IP en servidores cloud (Render, etc.).
 El lineup se anuncia típicamente ~1 hora antes del pitido inicial.
 Retorna None si todavía no está disponible o si el partido no fue encontrado.
 """
@@ -39,21 +38,24 @@ _HEADERS = {
     "Accept": "application/json",
 }
 
-_TTL_EVENT = 3600  # 1 h — el event_id es estable
-_TTL_LINEUP = 3600  # 1 h — se re-chequea por si se actualizó el lineup
+_TTL_EVENT     = 86400  # 24 h — el event_id no cambia
+_TTL_PENDING   =   600  # 10 min — re-chequea hasta que anuncien el lineup
+_TTL_CONFIRMED = 43200  # 12 h — innecesario re-fetch una vez confirmado
 
 # ESPN display name → nombre canónico del proyecto
 _ESPN_TO_CANONICAL: dict[str, str] = {
     "United States": "USA",
-    "South Korea": "Korea Republic",
-    "DR Congo": "Congo DR",
-    "Ivory Coast": "Côte d'Ivoire",
-    "Cape Verde": "Cabo Verde",
-    "Curacao": "Curaçao",
-    "Türkiye": "Turkey",
-    "Turkey": "Turkey",
-    "IR Iran": "Iran",
-    "Czechia": "Czechia",
+    "South Korea":   "Korea Republic",
+    "DR Congo":      "Congo DR",
+    "Ivory Coast":   "Côte d'Ivoire",
+    "Cape Verde":    "Cabo Verde",
+    "Curacao":       "Curaçao",
+    "Türkiye":       "Turkey",
+    "Turkey":        "Turkey",
+    "IR Iran":       "Iran",
+    "Bosnia and Herzegovina": "Bosnia and Herzegovina",
+    "Bosnia & Herzegovina":   "Bosnia and Herzegovina",
+    "Bosnia-Herzegovina":     "Bosnia and Herzegovina",
 }
 
 
@@ -82,12 +84,11 @@ def _canonical(espn_name: str) -> str:
 
 def _names_match(espn_name: str, canonical: str) -> bool:
     """True si el nombre ESPN corresponde al nombre canónico del proyecto."""
+    import difflib
+
     mapped = _canonical(espn_name)
     if mapped == canonical:
         return True
-    # Tolerancia para variaciones menores (ej. "Bosnia & Herzegovina" vs "Bosnia and Herzegovina")
-    import difflib
-
     return bool(
         difflib.get_close_matches(mapped.lower(), [canonical.lower()], n=1, cutoff=0.80)
     )
@@ -123,7 +124,6 @@ def _find_espn_event_id(
             return cached["event_id"], cached.get("swapped", False)
         return None, None
 
-    # Convertir YYYY-MM-DD → YYYYMMDD para ESPN
     date_compact = match_date.replace("-", "")
     try:
         data = _fetch(_ESPN_SCOREBOARD.format(date=date_compact))
@@ -139,14 +139,14 @@ def _find_espn_event_id(
         if len(competitors) < 2:
             continue
 
-        home = next(
+        team_h = next(
             (c for c in competitors if c.get("homeAway") == "home"), competitors[0]
         )
-        away = next(
+        team_a_comp = next(
             (c for c in competitors if c.get("homeAway") == "away"), competitors[1]
         )
-        espn_home = home.get("team", {}).get("displayName", "")
-        espn_away = away.get("team", {}).get("displayName", "")
+        espn_home = team_h.get("team", {}).get("displayName", "")
+        espn_away = team_a_comp.get("team", {}).get("displayName", "")
 
         eid = int(event["id"])
 
@@ -162,7 +162,6 @@ def _find_espn_event_id(
             )
             return eid, True
 
-    # Partido no encontrado en el scoreboard de ese día
     path.write_text(json.dumps({"event_id": None}), encoding="utf-8")
     return None, None
 
@@ -177,7 +176,6 @@ def _lineup_cache_path(event_id: int, cache_dir: Path) -> Path:
 
 
 def _extract_starters(roster: list[dict]) -> list[str]:
-    """Extrae los nombres de los titulares (starter=True) de un roster ESPN."""
     return [
         entry.get("athlete", {}).get("fullName", "")
         for entry in roster
@@ -197,11 +195,14 @@ def _fetch_lineup_from_summary(
     Devuelve {"team_a": [...], "team_b": [...]} o None si no está disponible.
     """
     path = _lineup_cache_path(event_id, cache_dir)
-    if _fresh(path, _TTL_LINEUP):
+
+    if path.exists():
         cached = json.loads(path.read_text(encoding="utf-8"))
-        if cached.get("confirmed"):
+        if cached.get("confirmed") and _fresh(path, _TTL_CONFIRMED):
             return {"team_a": cached["team_a"], "team_b": cached["team_b"]}
-        return None
+        if not cached.get("confirmed") and _fresh(path, _TTL_PENDING):
+            return None
+        # Caché expirada: re-fetch a continuación
 
     try:
         data = _fetch(_ESPN_SUMMARY.format(event_id=event_id))
@@ -210,11 +211,9 @@ def _fetch_lineup_from_summary(
 
     rosters = data.get("rosters", [])
     if not rosters:
-        # Lineup todavía no disponible
         path.write_text(json.dumps({"confirmed": False}), encoding="utf-8")
         return None
 
-    # ESPN devuelve dos entradas en rosters: home y away
     home_roster, away_roster = [], []
     for side in rosters:
         if side.get("homeAway") == "home":
@@ -226,11 +225,9 @@ def _fetch_lineup_from_summary(
     away_starters = _extract_starters(away_roster)
 
     if len(home_starters) < 7 or len(away_starters) < 7:
-        # Datos insuficientes — lineup no confirmado aún
         path.write_text(json.dumps({"confirmed": False}), encoding="utf-8")
         return None
 
-    # Asignar correctamente a team_a / team_b según si ESPN tiene los equipos invertidos
     if swapped:
         players_a, players_b = away_starters, home_starters
     else:
