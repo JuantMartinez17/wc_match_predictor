@@ -96,10 +96,13 @@ async def lifespan(app: FastAPI):
         cached = await loop.run_in_executor(_executor, load_accuracy_cache)
         if cached is not None:
             app.state.accuracy_metrics = cached
-            print("  [accuracy] Métricas cargadas del caché.")
+            print(
+                "  [accuracy] Métricas cargadas (cache runtime o baseline versionado)."
+            )
             return
 
-        print("  [accuracy] Calculando métricas de backtesting...")
+        # Solo llega acá si falta el baseline versionado (no debería en prod).
+        print("  [accuracy] Sin baseline: calculando métricas de backtesting...")
         # Sin metadata: los ratings FIFA 2025 son anacrónicos para WC 2018/2022.
         # El backtest evalúa el núcleo del motor (Elo + GLM + marcador) sin ruido.
         metrics = await loop.run_in_executor(
@@ -151,10 +154,10 @@ _TAGS_METADATA = [
     {
         "name": "accuracy",
         "description": (
-            "Métricas de backtesting *walk-forward* fuera de muestra. "
-            "Se calculan al arrancar el servidor evaluando cada modelo sobre los partidos "
-            "del Mundial 2018 y 2022, entrenando únicamente con datos anteriores a cada partido. "
-            "El resultado se cachea 30 días en disco."
+            "Métricas de backtesting *walk-forward* fuera de muestra, evaluando cada "
+            "modelo sobre los partidos del Mundial 2018 y 2022 (entrenando solo con datos "
+            "anteriores a cada partido). Se sirven desde un baseline versionado que viaja "
+            "con el código, así que están disponibles apenas arranca el servidor."
         ),
     },
     {
@@ -162,7 +165,8 @@ _TAGS_METADATA = [
         "description": (
             "Health check del servidor. "
             "Hacer polling a `GET /health` al iniciar hasta que `predictor = 'ready'` "
-            "(la carga inicial tarda ~30 s)."
+            "antes de llamar a `/api/predict` (la carga inicial tarda unos segundos, "
+            "más en un arranque en frío)."
         ),
     },
 ]

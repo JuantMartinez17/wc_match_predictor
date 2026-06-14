@@ -37,8 +37,12 @@ async def get_fixture(
     include_past: int = Query(
         default=1,
         ge=0,
-        le=7,
-        description="Días pasados a incluir (útil para ver resultados recientes).",
+        le=40,
+        description=(
+            "Días pasados a incluir (útil para ver resultados recientes). "
+            "El backend nunca consulta antes del inicio del Mundial (2026-06-11), "
+            "así que un valor alto (ej. 40) trae el fixture desde el primer día."
+        ),
         examples=[1],
     ),
 ) -> list[FixtureMatch]:

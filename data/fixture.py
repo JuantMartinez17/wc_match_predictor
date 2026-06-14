@@ -29,6 +29,8 @@ _HEADERS = {
     "Accept": "application/json",
 }
 _CACHE_TTL = 1800  # 30 minutos — el fixture cambia poco pero el estado (live) sí
+_CACHE_TTL_PAST = 86400  # 24 h — los partidos de días pasados ya están finalizados
+WC_START = date(2026, 6, 11)  # primer día del Mundial 2026; no se consulta antes
 
 
 # Mapa de nombres ESPN → nombres canónicos del proyecto
@@ -74,8 +76,8 @@ def _cache_path(d: date, cache_dir: Path) -> Path:
     return cache_dir / f"fixture_{d.isoformat()}.json"
 
 
-def _is_fresh(path: Path) -> bool:
-    return path.exists() and (time.time() - path.stat().st_mtime) < _CACHE_TTL
+def _is_fresh(path: Path, ttl: float = _CACHE_TTL) -> bool:
+    return path.exists() and (time.time() - path.stat().st_mtime) < ttl
 
 
 def _parse_events(data: dict) -> list[dict]:
@@ -151,9 +153,17 @@ def get_fixture(
 
     for delta in range(-include_past_days, days_ahead + 1):
         d = today + timedelta(days=delta)
+        # No consultar días previos al inicio del Mundial: ESPN no devolvería
+        # partidos y serían llamadas HTTP desperdiciadas (clave al pedir el
+        # rango completo del torneo con include_past alto).
+        if d < WC_START:
+            continue
         path = _cache_path(d, cache_dir)
 
-        if _is_fresh(path):
+        # Los días pasados ya están finalizados y no cambian: TTL largo para no
+        # re-pegar a ESPN en cada request del rango histórico. Hoy/futuro: 30 min.
+        ttl = _CACHE_TTL_PAST if d < today else _CACHE_TTL
+        if _is_fresh(path, ttl):
             raw = json.loads(path.read_text(encoding="utf-8"))
             all_matches.extend(raw)
             continue
