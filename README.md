@@ -148,6 +148,20 @@ Estado del servidor y del predictor.
 
 `predictor` puede ser `"ready"` o `"loading"`. Hacer polling hasta `"ready"` antes de enviar predicciones.
 
+**Integración robusta ante arranques en frío.** Tras un deploy o reinicio, el
+contenedor arranca en frío y la carga inicial del modelo puede tardar (decenas
+de segundos según el host). Para evitar timeouts del cliente:
+
+1. **Pollear `GET /health`** (rápido, no bloqueante) con reintentos hasta
+   `predictor: "ready"`; recién entonces llamar a `POST /api/predict`.
+2. Si `/api/predict` devuelve **`503`**, el predictor todavía está cargando:
+   reintentar con backoff, no tratarlo como error definitivo.
+3. Usar un **timeout de cliente holgado** para el primer request tras un arranque
+   en frío (≥ el peor caso de boot del host; 190 s puede quedar corto).
+
+El backtest de accuracy ya **no** corre al arrancar (se sirve un baseline
+versionado), así que la carga en frío no compite con las predicciones.
+
 ---
 
 ### `GET /api/teams`
@@ -191,9 +205,14 @@ Fixture oficial del Mundial 2026 vía ESPN API.
 | Param | Tipo | Default | Rango | Descripción |
 |---|---|---|---|---|
 | `days_ahead` | `integer` | `10` | 1–30 | Días hacia adelante desde hoy |
-| `include_past` | `integer` | `1` | 0–7 | Días pasados a incluir |
+| `include_past` | `integer` | `1` | 0–40 | Días pasados a incluir |
 
 **Ejemplo:** `GET /api/fixture?days_ahead=7&include_past=2`
+
+Para traer el fixture **desde el primer día del Mundial** (2026-06-11), pasar
+`include_past=40`: el backend nunca consulta días previos al inicio del torneo,
+así que un valor alto simplemente trae todo lo jugado. Los días pasados ya
+finalizados se cachean 24 h (no se re-consultan a ESPN en cada request).
 
 **Response:** `FixtureMatch[]`
 
@@ -306,6 +325,15 @@ Motor de predicción completo para un partido.
     "Lionel Messi", "Julián Álvarez", "Ángel Di María"
   ],
   "lineup_b": null,
+  "formation_a": "4-4-2",
+  "formation_b": null,
+  "lineup_detail_a": [
+    { "name": "Emiliano Martínez", "jersey": 23, "position": "G",    "formation_place": 1 },
+    { "name": "Nahuel Molina",     "jersey": 26, "position": "RB",   "formation_place": 2 },
+    { "name": "Cristian Romero",   "jersey": 13, "position": "CB",   "formation_place": 5 },
+    { "name": "Lionel Messi",      "jersey": 10, "position": "CF-R", "formation_place": 10 }
+  ],
+  "lineup_detail_b": null,
 
   "narrative": "Argentina tiene una leve ventaja, pero el partido está abierto. Se anticipan entre 2 y 3 goles en total. El marcador más probable es 1-0 a favor de Argentina (11% de chances).",
 
@@ -338,7 +366,18 @@ Motor de predicción completo para un partido.
 | `squad_desc_a/b` | `string` | Fuente de datos de plantilla usada |
 | `lineup_confirmed_a/b` | `boolean` | `true` si el XI inicial fue confirmado por ESPN |
 | `lineup_a/b` | `array<string> \| null` | Nombres del 11 inicial confirmado (orden de ESPN). `null` si no está disponible aún |
+| `formation_a/b` | `string \| null` | Formación táctica (ej. `"4-4-2"`). `null` si no hay lineup confirmado |
+| `lineup_detail_a/b` | `array<PlayerSlot> \| null` | 11 inicial con detalle por jugador para dibujar la cancha (ver abajo). `null` si no hay lineup confirmado |
 | `narrative` | `string` | Resumen en español sin jerga estadística |
+
+**`PlayerSlot`** (cada elemento de `lineup_detail_a/b`, ordenados por `formation_place`):
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `name` | `string` | Nombre completo del jugador |
+| `jersey` | `integer \| null` | Número de camiseta |
+| `position` | `string \| null` | Rol/posición (abreviatura ESPN: `G`, `RB`, `LB`, `CB`, `CM-R`, `LM`, `CF-L`, etc.) |
+| `formation_place` | `integer \| null` | Ubicación en la formación (1 = arquero … 11). Sirve para posicionar al jugador en la cancha |
 | `p_penalties` | `float \| null` | Prob. de llegar a penales (solo knockout) |
 | `p_advance_a/b` | `float \| null` | Prob. de clasificar incluyendo prórroga y penales |
 
