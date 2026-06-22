@@ -122,8 +122,14 @@ def _make_cfg(**kw):
                 "elo_supremacy_exponent", st.elo_supremacy_exponent
             ),
         )
-    if "form_sensitivity" in kw:
-        sec = dataclasses.replace(sec, form_sensitivity=kw["form_sensitivity"])
+    if "intratournament_boost" in kw:
+        dec = dataclasses.replace(dec, intratournament_boost=kw["intratournament_boost"])
+    if "form_sensitivity" in kw or "fatigue_sensitivity" in kw:
+        sec = dataclasses.replace(
+            sec,
+            form_sensitivity=kw.get("form_sensitivity", sec.form_sensitivity),
+            fatigue_sensitivity=kw.get("fatigue_sensitivity", sec.fatigue_sensitivity),
+        )
     return dataclasses.replace(DEFAULT_CONFIG, decay=dec, strength=st, secondary=sec)
 
 
@@ -152,7 +158,9 @@ def main() -> None:
     # ---- Etapa 1: lambda_decay × elo_prior_blend ----
     print("\n=== Etapa 1: lambda_decay × elo_prior_blend (min RPS tune) ===")
     s1 = []
-    for ld, bl in itertools.product((0.40, 0.65, 0.90), (0.20, 0.35, 0.50)):
+    # Grid ensanchado hacia donde ganaron los defaults adoptados (ld al mínimo,
+    # blend al máximo de los grids previos): se explora ld más bajo y blend más alto.
+    for ld, bl in itertools.product((0.25, 0.40, 0.55), (0.50, 0.65, 0.80)):
         t0 = time.time()
         m = fast_backtest(
             all_sorted,
@@ -170,7 +178,8 @@ def main() -> None:
     # ---- Etapa 2: elo_supremacy_exponent × form_sensitivity ----
     print("\n=== Etapa 2: elo_supremacy_exponent × form_sensitivity (min RPS tune) ===")
     s2 = []
-    for ex, fs in itertools.product((1.2, 1.6, 2.0), (0.0, 0.05, 0.10)):
+    # Grid ensanchado: exp y form también ganaron al máximo del grid previo.
+    for ex, fs in itertools.product((2.0, 2.5, 3.0), (0.10, 0.15, 0.20)):
         t0 = time.time()
         cfg = _make_cfg(
             lambda_decay=best_ld,
@@ -188,12 +197,33 @@ def main() -> None:
         f"  >> Ganador E2: elo_supremacy_exponent={best_ex}  form_sensitivity={best_fs}"
     )
 
+    # ---- Etapa 3: intratournament_boost (fijando ganadores de E1+E2) ----
+    print("\n=== Etapa 3: intratournament_boost (min RPS tune) ===")
+    s3 = []
+    for boost in (1.0, 1.5, 2.0, 3.0):
+        t0 = time.time()
+        cfg = _make_cfg(
+            lambda_decay=best_ld,
+            elo_prior_blend=best_bl,
+            elo_supremacy_exponent=best_ex,
+            form_sensitivity=best_fs,
+            intratournament_boost=boost,
+        )
+        m = fast_backtest(all_sorted, dates_arr, tune_set, cfg)
+        s3.append((boost, m["rps"], m["brier"]))
+        print(
+            f"  boost={boost:.1f} -> RPS={m['rps']:.4f} brier={m['brier']:.4f}  ({time.time() - t0:.0f}s)"
+        )
+    best_boost, _, _ = min(s3, key=lambda r: r[1])
+    print(f"  >> Ganador E3: intratournament_boost={best_boost}")
+
     # ---- Validación en holdout 2022 ----
     best_cfg = _make_cfg(
         lambda_decay=best_ld,
         elo_prior_blend=best_bl,
         elo_supremacy_exponent=best_ex,
         form_sensitivity=best_fs,
+        intratournament_boost=best_boost,
     )
     tuned_hold = fast_backtest(all_sorted, dates_arr, holdout, best_cfg)
 
@@ -208,7 +238,8 @@ def main() -> None:
     better = tuned_hold["rps"] < base_hold["rps"]
     print(
         f"\n  Parámetros tuneados: lambda_decay={best_ld} elo_prior_blend={best_bl} "
-        f"elo_supremacy_exponent={best_ex} form_sensitivity={best_fs}"
+        f"elo_supremacy_exponent={best_ex} form_sensitivity={best_fs} "
+        f"intratournament_boost={best_boost}"
     )
     print(
         f"  DECISIÓN: {'ADOPTAR (holdout mejora)' if better else 'NO adoptar (holdout no mejora)'}"
