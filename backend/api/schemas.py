@@ -214,6 +214,36 @@ class ScoreProbability(BaseModel):
     )
 
 
+class PlayerSlot(BaseModel):
+    """Un jugador del 11 inicial con su ubicación en la formación."""
+
+    name: str = Field(
+        ..., description="Nombre completo del jugador.", examples=["Johny Placide"]
+    )
+    jersey: int | None = Field(
+        default=None, description="Número de camiseta.", examples=[1]
+    )
+    position: str | None = Field(
+        default=None,
+        description=(
+            "Rol/posición en la formación, abreviatura de ESPN: `G` (arquero), "
+            "`RB`/`LB` (laterales), `CB`/`CD-L`/`CD-R` (centrales), `CM-R`/`CM-L` "
+            "(volantes centrales), `LM`/`RM` (volantes externos), `CF-L`/`CF-R` "
+            "(delanteros), etc."
+        ),
+        examples=["G"],
+    )
+    formation_place: int | None = Field(
+        default=None,
+        description=(
+            "Índice de ubicación en la formación (1 = arquero … 11). Junto con "
+            "`position` permite posicionar al jugador en la cancha. La lista viene "
+            "ordenada por este campo."
+        ),
+        examples=[1],
+    )
+
+
 class ModelAccuracy(BaseModel):
     model: str = Field(
         ...,
@@ -380,6 +410,32 @@ class PredictResponse(BaseModel):
             "está disponible. Presente ⇔ `lineup_confirmed_b` es `true`."
         ),
         examples=[None],
+    )
+    formation_a: str | None = Field(
+        default=None,
+        description=(
+            "Formación táctica del equipo A según ESPN (ej. `'4-4-2'`, `'4-3-3'`). "
+            "`null` si no hay lineup confirmado."
+        ),
+        examples=["4-4-2"],
+    )
+    formation_b: str | None = Field(
+        default=None,
+        description="Formación táctica del equipo B (ej. `'4-3-3'`). `null` si no hay lineup confirmado.",
+        examples=["4-3-3"],
+    )
+    lineup_detail_a: list[PlayerSlot] | None = Field(
+        default=None,
+        description=(
+            "11 inicial del equipo A con detalle por jugador (nombre, dorsal, posición, "
+            "slot de formación), ordenado por `formation_place`. Pensado para dibujar la "
+            "cancha con los jugadores ubicados. `null` si no hay lineup confirmado. "
+            "Mismos jugadores que `lineup_a`, con metadata de posición."
+        ),
+    )
+    lineup_detail_b: list[PlayerSlot] | None = Field(
+        default=None,
+        description="11 inicial del equipo B con detalle por jugador (ver `lineup_detail_a`).",
     )
 
     # ---- Narrativa ----

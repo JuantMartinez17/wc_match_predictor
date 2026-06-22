@@ -18,7 +18,7 @@ from datetime import date, timedelta
 from fastapi import APIRouter, HTTPException, Request
 
 from ..constants import CANONICAL_BY_ID, flag, team_id
-from ..schemas import PredictRequest, PredictResponse, ScoreProbability
+from ..schemas import PlayerSlot, PredictRequest, PredictResponse, ScoreProbability
 
 router = APIRouter()
 
@@ -215,7 +215,15 @@ async def predict_match(req: PredictRequest, request: Request) -> PredictRespons
     - `422` — ID de equipo inválido, ambos equipos iguales, o body mal formado.
     - `503` — El predictor aún está cargando (primera petición tras arrancar).
     """
-    predictor = request.app.state.predictor
+    # Guard defensivo: el lifespan asigna app.state.predictor antes de aceptar
+    # requests, pero ante un arranque parcial respondemos 503 rápido (en vez de
+    # romper) para que el cliente pollee /health y reintente sin colgarse.
+    predictor = getattr(request.app.state, "predictor", None)
+    if predictor is None:
+        raise HTTPException(
+            status_code=503,
+            detail="El predictor todavía está cargando. Polleá GET /health hasta predictor='ready' y reintentá.",
+        )
     executor = request.app.state.executor
     loop = asyncio.get_running_loop()
 
@@ -271,6 +279,13 @@ async def predict_match(req: PredictRequest, request: Request) -> PredictRespons
 
     lineup_a = lineup["team_a"] if lineup else None
     lineup_b = lineup["team_b"] if lineup else None
+    # Formación táctica + detalle por jugador (para dibujar la cancha en el front).
+    formation_a = lineup.get("formation_a") if lineup else None
+    formation_b = lineup.get("formation_b") if lineup else None
+    detail_a = lineup.get("detail_a") if lineup else None
+    detail_b = lineup.get("detail_b") if lineup else None
+    slots_a = [PlayerSlot(**s) for s in detail_a] if detail_a else None
+    slots_b = [PlayerSlot(**s) for s in detail_b] if detail_b else None
     xi_val_a, xi_desc_a = _resolve_xi_value(team_a, lineup_a, squad_a)
     xi_val_b, xi_desc_b = _resolve_xi_value(team_b, lineup_b, squad_b)
 
@@ -379,6 +394,10 @@ async def predict_match(req: PredictRequest, request: Request) -> PredictRespons
         lineup_confirmed_b=lineup_confirmed_b,
         lineup_a=lineup_a,
         lineup_b=lineup_b,
+        formation_a=formation_a,
+        formation_b=formation_b,
+        lineup_detail_a=slots_a,
+        lineup_detail_b=slots_b,
         narrative=narrative,
         is_knockout=req.knockout,
         p_penalties=p_penalties,

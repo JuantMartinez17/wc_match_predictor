@@ -21,6 +21,10 @@ from ..schemas import ModelAccuracy
 router = APIRouter()
 
 _CACHE_PATH = Path("data/cache/accuracy_metrics.json")
+# Baseline versionado (ship con el código, ruta NO ignorada por git). Se sirve
+# cuando no hay cache runtime fresco — evita correr el backtest de ~3 min en cada
+# arranque con filesystem efímero, que en CPU limitada demora la 1ra predicción.
+_BASELINE_PATH = Path(__file__).resolve().parents[1] / "accuracy_baseline.json"
 _CACHE_TTL_DAYS = 30
 _MODELS_ORDER = ("dixon_coles", "bivariate_poisson", "poisson_simple")
 _MODEL_LABELS = {
@@ -36,17 +40,28 @@ _DATASET_LABEL = "Mundiales 2018–2022"
 # ---------------------------------------------------------------------------
 
 
-def load_accuracy_cache() -> list[dict] | None:
-    if not _CACHE_PATH.exists():
-        return None
-    age_days = (time.time() - _CACHE_PATH.stat().st_mtime) / 86400
-    if age_days > _CACHE_TTL_DAYS:
-        return None
+def _read_metrics(path: Path) -> list[dict] | None:
     try:
-        data = json.loads(_CACHE_PATH.read_text(encoding="utf-8"))
-        return data.get("metrics")
+        return json.loads(path.read_text(encoding="utf-8")).get("metrics")
     except Exception:
         return None
+
+
+def load_accuracy_cache() -> list[dict] | None:
+    """
+    Métricas para /api/accuracy, sin correr el backtest al arrancar.
+
+    Prioriza el cache runtime fresco (recalculado en este host); si no existe o
+    expiró, cae al baseline versionado (ignorando TTL). Así el backtest de ~3 min
+    no corre en producción salvo que se regenere el baseline a mano.
+    """
+    if _CACHE_PATH.exists():
+        age_days = (time.time() - _CACHE_PATH.stat().st_mtime) / 86400
+        if age_days <= _CACHE_TTL_DAYS:
+            metrics = _read_metrics(_CACHE_PATH)
+            if metrics is not None:
+                return metrics
+    return _read_metrics(_BASELINE_PATH)
 
 
 def save_accuracy_cache(metrics: list[dict]) -> None:
@@ -233,9 +248,9 @@ async def get_accuracy(request: Request) -> list[ModelAccuracy]:
       Valores típicos en fútbol internacional: 0.19–0.24. Menor es mejor.
 
     ### Disponibilidad
-    Las métricas se calculan en background al arrancar el servidor y se cachean
-    30 días en disco. Si el cálculo aún no terminó, devuelve `503`.
-    El cálculo inicial tarda entre 3 y 6 minutos.
+    Las métricas se sirven desde un baseline versionado que viaja con el código,
+    por lo que están disponibles casi inmediatamente tras arrancar. Si por algún
+    motivo aún no se cargaron, devuelve `503`.
     """
     metrics = getattr(request.app.state, "accuracy_metrics", None)
     if metrics is None:

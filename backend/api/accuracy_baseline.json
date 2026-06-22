@@ -1,0 +1,30 @@
+{
+  "computed_at": "2026-06-13T17:06:51",
+  "note": "Baseline versionado del backtest walk-forward (Mundiales 2018-2022) con la config actual del motor. Se sirve en arranques sin cache runtime para evitar correr el backtest de ~3 min, que en hosts de CPU limitada satura el procesador y demora la primera prediccion. Regenerar con: python -c \"from config import DEFAULT_CONFIG; from backend.api.routers.accuracy import compute_wc_backtest, save_accuracy_cache; save_accuracy_cache(compute_wc_backtest(None, DEFAULT_CONFIG))\" y copiar data/cache/accuracy_metrics.json aca. Solo hace falta si cambia el motor o la config.",
+  "metrics": [
+    {
+      "model": "dixon_coles",
+      "label": "Dixon-Coles",
+      "matches_evaluated": 124,
+      "correct_result_pct": 0.516,
+      "brier_score": 0.593,
+      "dataset": "Mundiales 2018–2022"
+    },
+    {
+      "model": "bivariate_poisson",
+      "label": "Bivariate Poisson",
+      "matches_evaluated": 124,
+      "correct_result_pct": 0.516,
+      "brier_score": 0.594,
+      "dataset": "Mundiales 2018–2022"
+    },
+    {
+      "model": "poisson_simple",
+      "label": "Poisson Simple",
+      "matches_evaluated": 124,
+      "correct_result_pct": 0.516,
+      "brier_score": 0.591,
+      "dataset": "Mundiales 2018–2022"
+    }
+  ]
+}
