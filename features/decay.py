@@ -71,6 +71,19 @@ def combined_weights(
     w_time = time_decay_weight(matches["date"], reference_date, decay_cfg.lambda_decay)
     w_imp = importance_weight(matches["competition"], imp_cfg)
     w = w_time * w_imp
+
+    # Boost de recencia in-torneo: partidos de un torneo mayor en curso (mismos
+    # `intratournament_days` y competición de tier alto) pesan extra. Inerte
+    # cuando no hay torneo mayor reciente (no hay partidos que cumplan la condición)
+    # o cuando el boost es 1.0.
+    boost = decay_cfg.intratournament_boost
+    if boost != 1.0:
+        ref = pd.Timestamp(reference_date)
+        age_days = (ref - pd.to_datetime(matches["date"])).dt.days.to_numpy()
+        recent = (age_days >= 0) & (age_days <= decay_cfg.intratournament_days)
+        tier = matches["competition"].isin(decay_cfg.intratournament_competitions).to_numpy()
+        w = np.where(recent & tier, w * boost, w)
+
     if w.sum() <= 0:
         # Degradación elegante: si todo decayó a ~0, usa pesos uniformes.
         return np.ones(len(matches))

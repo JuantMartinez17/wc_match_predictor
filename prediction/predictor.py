@@ -28,11 +28,13 @@ from data.loader import validate_matches, validate_metadata
 from features.availability import availability_score, describe_absences
 from features.context import (
     coach_multiplier,
+    fatigue_multiplier,
     head_to_head_adjustment,
+    rest_days,
     squad_value_multiplier,
 )
 from features.decay import combined_weights
-from features.elo import compute_elo_history, elo_trend
+from features.elo import compute_elo_history, elo_trend, elo_win_probabilities
 from features.strength import StrengthModel
 from models.base import ScoreModel, outcome_probabilities, top_scorelines
 from models.bivariate_poisson import BivariatePoissonModel
@@ -271,6 +273,16 @@ class MatchPredictor:
         lam_a *= m_form_a
         lam_b *= m_form_b
 
+        # Factor de fatiga: descanso relativo (días desde el último partido).
+        # Desactivado salvo fatigue_sensitivity>0 (se valida por backtest; ver config).
+        m_fat_a = m_fat_b = 1.0
+        if sec.fatigue_sensitivity > 0:
+            rest_a = rest_days(self.matches, team_a, ref, sec.fatigue_max_days)
+            rest_b = rest_days(self.matches, team_b, ref, sec.fatigue_max_days)
+            m_fat_a, m_fat_b = fatigue_multiplier(rest_a, rest_b, sec)
+        lam_a *= m_fat_a
+        lam_b *= m_fat_b
+
         lam_a = max(lam_a, 0.05)
         lam_b = max(lam_b, 0.05)
 
@@ -285,6 +297,35 @@ class MatchPredictor:
             "m_form_a": m_form_a,
             "strength": strength, "score_model": score_model, "matrix": matrix,
         }
+
+    def _ensemble_elo(
+        self,
+        p_a: float,
+        p_draw: float,
+        p_b: float,
+        team_a: str,
+        team_b: str,
+        neutral: bool,
+        home_team: str | None,
+    ) -> tuple[float, float, float]:
+        """
+        Mezcla las probabilidades 1X2 del modelo de marcador con las del Elo puro
+        (peso `elo_ensemble_weight`). Reduce varianza en muestras chicas/ruidosas.
+        Validado por backtest (DC+elo, w=0.5). w=0 deja las probs del modelo intactas.
+        """
+        w = self.cfg.strength.elo_ensemble_weight
+        if w <= 0:
+            return p_a, p_draw, p_b
+        ra = self.ratings.get(team_a, self.cfg.elo.base_rating)
+        rb = self.ratings.get(team_b, self.cfg.elo.base_rating)
+        e_a, e_draw, e_b = elo_win_probabilities(
+            ra, rb, self.cfg.elo, home_team=home_team, team_a=team_a, neutral=neutral
+        )
+        pa = (1.0 - w) * p_a + w * e_a
+        pd_ = (1.0 - w) * p_draw + w * e_draw
+        pb = (1.0 - w) * p_b + w * e_b
+        total = pa + pd_ + pb
+        return pa / total, pd_ / total, pb / total
 
     # -------------------------------------------------------------- predict
     def predict(
@@ -330,6 +371,10 @@ class MatchPredictor:
             # Camino exacto (rápido, determinista) para backtesting masivo.
             p_a, p_draw, p_b = outcome_probabilities(matrix)
             tops = top_scorelines(matrix, k=10)
+
+        p_a, p_draw, p_b = self._ensemble_elo(
+            p_a, p_draw, p_b, team_a, team_b, neutral, home_team
+        )
 
         explanation = self._explain(
             team_a, team_b, ref, core["base_la"], core["base_lb"], lam_a, lam_b,
@@ -386,6 +431,9 @@ class MatchPredictor:
         )
         matrix = core["matrix"]
         p_a_reg, p_draw_reg, p_b_reg = outcome_probabilities(matrix)
+        p_a_reg, p_draw_reg, p_b_reg = self._ensemble_elo(
+            p_a_reg, p_draw_reg, p_b_reg, team_a, team_b, neutral, home_team
+        )
 
         # ----- Prórroga: mismo modelo con tasas reducidas -----
         kcfg = self.cfg.knockout

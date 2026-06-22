@@ -20,7 +20,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import accuracy, fixture, predict, teams
+from .routers import accuracy, fixture, predict, standings, teams
 
 
 def _load_dotenv() -> None:
@@ -213,6 +213,7 @@ app.add_middleware(
 
 app.include_router(teams.router, prefix="/api", tags=["teams"])
 app.include_router(fixture.router, prefix="/api", tags=["fixture"])
+app.include_router(standings.router, prefix="/api", tags=["standings"])
 app.include_router(predict.router, prefix="/api", tags=["predict"])
 app.include_router(accuracy.router, prefix="/api", tags=["accuracy"])
 

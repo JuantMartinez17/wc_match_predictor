@@ -120,6 +120,39 @@ class FixtureMatch(BaseModel):
     )
 
 
+class StandingRow(BaseModel):
+    rank: int = Field(
+        ..., description="Posición en el grupo (1 = puntero).", examples=[1]
+    )
+    team_id: int = Field(..., description="ID numérico del equipo.", examples=[28])
+    team: str = Field(..., description="Nombre canónico en inglés.", examples=["USA"])
+    team_es: str = Field(
+        ..., description="Nombre en español.", examples=["Estados Unidos"]
+    )
+    flag: str = Field(..., description="Código de bandera (flagcdn).", examples=["us"])
+    played: int = Field(..., description="Partidos jugados.", examples=[1])
+    won: int = Field(..., examples=[1])
+    drawn: int = Field(..., examples=[0])
+    lost: int = Field(..., examples=[0])
+    gf: int = Field(..., description="Goles a favor.", examples=[4])
+    ga: int = Field(..., description="Goles en contra.", examples=[1])
+    gd: int = Field(..., description="Diferencia de goles.", examples=[3])
+    points: int = Field(..., description="Puntos.", examples=[3])
+
+
+class StandingsGroup(BaseModel):
+    group_index: int = Field(
+        ...,
+        description="Identificador estable del grupo por orden (NO la letra oficial: "
+        "los grupos se infieren del calendario, que no expone la letra).",
+        examples=[1],
+    )
+    teams: list[str] = Field(..., description="Equipos del grupo (canónicos).")
+    table: list[StandingRow] = Field(
+        ..., description="Tabla ordenada por desempates FIFA."
+    )
+
+
 class PredictRequest(BaseModel):
     team_a_id: int = Field(
         ...,
