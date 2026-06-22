@@ -39,6 +39,47 @@ def squad_value_multiplier(
     return float(np.exp(adj)), float(np.exp(-adj))
 
 
+def rest_days(
+    matches: pd.DataFrame,
+    team: str,
+    reference_date: pd.Timestamp,
+    max_days: int = 14,
+) -> float:
+    """
+    Días desde el último partido del equipo antes de `reference_date`, topeados a
+    `max_days`. Sin historial previo => `max_days` (se asume equipo descansado).
+
+    El tope refleja que la fatiga solo es señal con fixture congestionado (torneo):
+    más allá de ~2 semanas el equipo está fresco y descansos mayores no aportan.
+    """
+    ref = pd.Timestamp(reference_date)
+    mask = (
+        ((matches["home_team"] == team) | (matches["away_team"] == team))
+        & (matches["date"] < ref)
+    )
+    prev = matches.loc[mask, "date"]
+    if len(prev) == 0:
+        return float(max_days)
+    days = (ref - prev.max()).days
+    return float(min(max(days, 0), max_days))
+
+
+def fatigue_multiplier(
+    rest_a: float,
+    rest_b: float,
+    cfg: SecondaryWeights,
+) -> tuple[float, float]:
+    """
+    Ajuste por fatiga relativa. El equipo con más descanso recibe un leve empujón
+    ofensivo; el más cargado, una leve penalización. Devuelve (m_a, m_b) centrados
+    en 1.0. Inerte cuando ambos equipos están igual de descansados (diff=0), p. ej.
+    en el primer partido de un torneo (ambos topeados a `fatigue_max_days`).
+    """
+    diff = (rest_a - rest_b) / 7.0  # normaliza por ~1 semana
+    adj = cfg.fatigue_sensitivity * np.tanh(diff)
+    return float(np.exp(adj)), float(np.exp(-adj))
+
+
 def coach_multiplier(
     coach_a: dict | None,
     coach_b: dict | None,

@@ -26,6 +26,14 @@ class DecayConfig:
     max_matches: int = 20
     # Ventana dura máxima en meses.
     max_months: int = 24
+    # Boost de recencia "in-torneo": pondera extra los partidos de un torneo
+    # mayor EN CURSO (mismos últimos `intratournament_days` y competición de tier
+    # alto). Captura la forma/fitness/ajuste táctico del torneo actual, que el
+    # decay temporal solo no distingue de un amistoso reciente. 1.0 = desactivado
+    # (default neutro hasta validar por backtest; ver scripts/tune_wc.py).
+    intratournament_boost: float = 1.0
+    intratournament_days: int = 45
+    intratournament_competitions: tuple = ("world_cup", "continental_cup")
 
 
 @dataclass(frozen=True)
@@ -77,6 +85,12 @@ class StrengthConfig:
     # multiplicativa de goles del prior: lambda_Elo = league_avg * exp(exp * sup).
     # Mayor -> el prior Elo separa más a favoritos/débiles. Optimizado por backtest.
     elo_supremacy_exponent: float = 2.0
+    # Ensemble a nivel de PROBABILIDAD 1X2: mezcla la salida del modelo de marcador
+    # con la del Elo puro -> p = (1-w)*p_modelo + w*p_elo (renormalizado). Reduce
+    # varianza en muestras chicas/ruidosas (Mundial). Validado por backtest: mejora
+    # RPS/accuracy/log-loss en holdout 2022 y en el pool 2010-2022 (DC+elo, w=0.5).
+    # 0.0 = solo modelo de marcador (comportamiento previo).
+    elo_ensemble_weight: float = 0.5
 
 
 @dataclass(frozen=True)
@@ -143,6 +157,12 @@ class SecondaryWeights:
     coach_sensitivity: float = 0.04
     # Peso del historial directo como pequeño ajuste del prior (muy bajo).
     h2h_weight: float = 0.05
+    # Sensibilidad de la fatiga (días de descanso relativos). El equipo más
+    # descansado recibe un leve empujón ofensivo; acotado por tanh. Los descansos
+    # se topean a `fatigue_max_days` (más allá, equipo "fresco": sin congestión,
+    # típico fuera de torneos). 0.0 = desactivado (default neutro hasta validar).
+    fatigue_sensitivity: float = 0.0
+    fatigue_max_days: int = 14
 
 
 @dataclass(frozen=True)
