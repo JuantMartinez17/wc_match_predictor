@@ -7,7 +7,23 @@ Los `examples` en Field() se usan directamente en el Swagger UI.
 
 from __future__ import annotations
 
+from enum import StrEnum
+
 from pydantic import BaseModel, Field
+
+
+class MatchInstance(StrEnum):
+    """Instancia/jornada del Mundial para filtrar el fixture (`GET /api/fixture`)."""
+
+    fecha_1 = "fecha-1"
+    fecha_2 = "fecha-2"
+    fecha_3 = "fecha-3"
+    dieciseisavos = "dieciseisavos"  # round-of-32
+    octavos = "octavos"  # round-of-16
+    cuartos = "cuartos"  # quarterfinals
+    semis = "semis"  # semifinals
+    tercer_puesto = "tercer-puesto"  # 3rd-place-match
+    final = "final"
 
 
 class Team(BaseModel):

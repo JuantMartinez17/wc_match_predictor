@@ -202,17 +202,34 @@ Fixture oficial del Mundial 2026 vía ESPN API.
 
 **Query params:**
 
-| Param | Tipo | Default | Rango | Descripción |
+| Param | Tipo | Default | Valores | Descripción |
 |---|---|---|---|---|
-| `days_ahead` | `integer` | `10` | 1–30 | Días hacia adelante desde hoy |
-| `include_past` | `integer` | `1` | 0–40 | Días pasados a incluir |
+| `instance` | `string` (enum) | — | `fecha-1`, `fecha-2`, `fecha-3`, `dieciseisavos`, `octavos`, `cuartos`, `semis`, `tercer-puesto`, `final` | **Si se pasa, devuelve solo los partidos de esa instancia/jornada** (ignora `days_ahead`/`include_past`) |
+| `days_ahead` | `integer` | `10` | 1–30 | Días hacia adelante desde hoy. Se ignora si se pasa `instance` |
+| `include_past` | `integer` | `1` | 0–40 | Días pasados a incluir. Se ignora si se pasa `instance` |
 
-**Ejemplo:** `GET /api/fixture?days_ahead=7&include_past=2`
+**Dos modos de uso:**
 
-Para traer el fixture **desde el primer día del Mundial** (2026-06-11), pasar
-`include_past=40`: el backend nunca consulta días previos al inicio del torneo,
-así que un valor alto simplemente trae todo lo jugado. Los días pasados ya
-finalizados se cachean 24 h (no se re-consultan a ESPN en cada request).
+- **Por instancia** — `GET /api/fixture?instance=fecha-1` → solo los partidos de esa
+  jornada/ronda. Trae el torneo completo en **una sola llamada cacheada** a ESPN y
+  filtra; liviano para el servidor e ideal para que el frontend pida por instancia y
+  no baje todo el fixture. Instancias:
+  - **Grupos:** `fecha-1`, `fecha-2`, `fecha-3` (la jornada se deriva del calendario,
+    porque ESPN no la expone).
+  - **Eliminatoria:** `dieciseisavos` (32avos), `octavos`, `cuartos`, `semis`,
+    `tercer-puesto`, `final` (del slug oficial de ESPN).
+
+  Devuelve `[]` si la instancia aún no tiene partidos con equipos definidos. `422` si
+  `instance` no es uno de los valores válidos. **Nota:** una ronda de eliminatoria
+  cuyos clasificados todavía no se conocen puede venir vacía hasta que se definan los
+  equipos (no se puede listar/predicar un cruce con cupos por definir).
+- **Por ventana** (sin `instance`) — `GET /api/fixture?days_ahead=7&include_past=2` →
+  los partidos en `[hoy − include_past, hoy + days_ahead]` (comportamiento previo).
+  Para traer el fixture **desde el primer día del Mundial** (2026-06-11), pasar
+  `include_past=40`: el backend nunca consulta días previos al inicio del torneo,
+  así que un valor alto simplemente trae todo lo jugado.
+
+Caché: 30 min. En modo ventana, los días pasados ya finalizados se cachean 24 h.
 
 **Response:** `FixtureMatch[]`
 

@@ -20,6 +20,11 @@ _ESPN_URL = (
     "https://site.api.espn.com/apis/site/v2/sports/soccer/"
     "fifa.world/scoreboard?dates={date}&limit=20"
 )
+# Consulta por RANGO de fechas: trae todo el torneo en una sola llamada.
+_ESPN_URL_RANGE = (
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/"
+    "fifa.world/scoreboard?dates={start}-{end}&limit=200"
+)
 _HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -31,6 +36,9 @@ _HEADERS = {
 _CACHE_TTL = 1800  # 30 minutos — el fixture cambia poco pero el estado (live) sí
 _CACHE_TTL_PAST = 86400  # 24 h — los partidos de días pasados ya están finalizados
 WC_START = date(2026, 6, 11)  # primer día del Mundial 2026; no se consulta antes
+# Margen de días desde WC_START para cubrir todo el torneo (hasta la final, ~07-19).
+WC_HORIZON_DAYS = 45
+_TOURNAMENT_CACHE = "fixture_tournament.json"
 
 
 # Mapa de nombres ESPN → nombres canónicos del proyecto
@@ -133,6 +141,33 @@ def _parse_events(data: dict) -> list[dict]:
     return matches
 
 
+def _load_day(d: date, cache_dir: Path, today: date) -> list[dict]:
+    """
+    Carga los partidos de UN día (caché o ESPN). Núcleo reutilizable por
+    `get_fixture` (rango) y `get_fixture_by_date` (un solo día).
+
+    - No consulta días previos al inicio del Mundial (ESPN no devolvería nada;
+      serían llamadas HTTP desperdiciadas).
+    - Días pasados usan TTL largo (ya finalizados, no cambian); hoy/futuro 30 min.
+    - Sin conexión: usa caché aunque sea viejo; si no hay nada, lista vacía.
+    """
+    if d < WC_START:
+        return []
+    path = _cache_path(d, cache_dir)
+    ttl = _CACHE_TTL_PAST if d < today else _CACHE_TTL
+    if _is_fresh(path, ttl):
+        return json.loads(path.read_text(encoding="utf-8"))
+    try:
+        data = _fetch(_ESPN_URL.format(date=d.strftime("%Y%m%d")))
+        day_matches = _parse_events(data)
+        path.write_text(json.dumps(day_matches, ensure_ascii=False), encoding="utf-8")
+        return day_matches
+    except (urllib.error.URLError, Exception):
+        if path.exists():
+            return json.loads(path.read_text(encoding="utf-8"))
+        return []
+
+
 def get_fixture(
     days_ahead: int = 7,
     include_past_days: int = 1,
@@ -150,37 +185,43 @@ def get_fixture(
 
     today = date.today()
     all_matches: list[dict] = []
-
     for delta in range(-include_past_days, days_ahead + 1):
-        d = today + timedelta(days=delta)
-        # No consultar días previos al inicio del Mundial: ESPN no devolvería
-        # partidos y serían llamadas HTTP desperdiciadas (clave al pedir el
-        # rango completo del torneo con include_past alto).
-        if d < WC_START:
-            continue
-        path = _cache_path(d, cache_dir)
-
-        # Los días pasados ya están finalizados y no cambian: TTL largo para no
-        # re-pegar a ESPN en cada request del rango histórico. Hoy/futuro: 30 min.
-        ttl = _CACHE_TTL_PAST if d < today else _CACHE_TTL
-        if _is_fresh(path, ttl):
-            raw = json.loads(path.read_text(encoding="utf-8"))
-            all_matches.extend(raw)
-            continue
-
-        try:
-            data = _fetch(_ESPN_URL.format(date=d.strftime("%Y%m%d")))
-            day_matches = _parse_events(data)
-            path.write_text(json.dumps(day_matches, ensure_ascii=False), encoding="utf-8")
-            all_matches.extend(day_matches)
-        except (urllib.error.URLError, Exception):
-            # Sin conexión: intenta usar caché aunque sea viejo
-            if path.exists():
-                raw = json.loads(path.read_text(encoding="utf-8"))
-                all_matches.extend(raw)
+        all_matches.extend(_load_day(today + timedelta(days=delta), cache_dir, today))
 
     # Ordenar por fecha y hora
     return sorted(all_matches, key=lambda m: (m["date"], m["time_utc"]))
+
+
+def get_tournament_fixture(cache_dir: str | Path = "data/cache") -> list[dict]:
+    """
+    Devuelve TODOS los partidos del torneo en UNA sola llamada a ESPN (consulta por
+    rango de fechas), cacheada. Es la base para filtrar por instancia/jornada sin
+    recorrer día por día.
+
+    Cada match incluye el campo `round` con el slug de ESPN, que distingue las
+    rondas de eliminatoria: `group-stage`, `round-of-32`, `round-of-16`,
+    `quarterfinals`, `semifinals`, `3rd-place-match`, `final`. (La fase de grupos no
+    trae la jornada/fecha; se deriva en data/instances.py.)
+
+    Caché 30 min. Sin conexión: usa la última versión cacheada (aunque sea vieja).
+    """
+    cache_dir = Path(cache_dir)
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    path = cache_dir / _TOURNAMENT_CACHE
+    if _is_fresh(path, _CACHE_TTL):
+        return json.loads(path.read_text(encoding="utf-8"))
+
+    start = WC_START.strftime("%Y%m%d")
+    end = (WC_START + timedelta(days=WC_HORIZON_DAYS)).strftime("%Y%m%d")
+    try:
+        data = _fetch(_ESPN_URL_RANGE.format(start=start, end=end))
+        matches = _parse_events(data)
+        path.write_text(json.dumps(matches, ensure_ascii=False), encoding="utf-8")
+        return matches
+    except (urllib.error.URLError, Exception):
+        if path.exists():
+            return json.loads(path.read_text(encoding="utf-8"))
+        return []
 
 
 if __name__ == "__main__":
